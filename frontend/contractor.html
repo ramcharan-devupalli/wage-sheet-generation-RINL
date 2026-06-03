@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Contractor Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Contractor</h2>
+    <a href="#">Dashboard</a>
+    <a href="#">Add Worker</a>
+    <a href="#">Attendance</a>
+    <a href="#">Wage Report</a>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <main>
+    <h1>Contractor Dashboard</h1>
+    <p id="welcome"></p>
+
+    <div class="cards">
+      <div class="card"><h3>My Workers</h3><p>34</p></div>
+      <div class="card"><h3>Present Today</h3><p>29</p></div>
+      <div class="card"><h3>Absent Today</h3><p>5</p></div>
+      <div class="card"><h3>Pending Wages</h3><p>₹42,000</p></div>
+    </div>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

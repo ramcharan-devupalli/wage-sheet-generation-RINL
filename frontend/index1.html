@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RINL – Contractor Wage Management System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+  <div class="topbar">
+    <span>🏭 Visakhapatnam Steel Plant · Visakhapatnam – 530031, Andhra Pradesh</span>
+    <div>
+      <a href="#">Ministry of Steel</a>
+      <a href="#">vizagsteel.com</a>
+      <a href="#">IT Support: 0891-2518000</a>
+    </div>
+  </div>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="rinl-logo" href="#">
+        <div class="rinl-logo-icon">
+          <img src="rinl-logo.png" alt="RINL Logo" width="60" height="60" style="object-fit:contain;border-radius:4px;"/>
+        </div>
+        <div class="rinl-logo-text">
+          <div class="rinl-name">RINL · <span>VIZAG STEEL</span></div>
+          <div class="rinl-full">Rashtriya Ispat Nigam Limited<br>A Navratna Govt. of India Enterprise</div>
+        </div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#features">System</a></li>
+        <li><a href="#workforce">Workforce</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+      <button class="btn-login" onclick="openLogin()">🔐 &nbsp;Login</button>
+    </div>
+  </nav>
+
+  <section class="hero" id="home">
+    <div class="hero-inner">
+      <div class="hero-left">
+        <div class="hero-badge">Contractor Wage Management System</div>
+        <h1 class="hero-title">India's Pride in<br><span>Steel Production</span></h1>
+        <p class="hero-subtitle">RINL – Visakhapatnam Steel Plant's digital platform for managing contractor payroll across skilled, semi-skilled, unskilled workers and supervisors — accurate, automated, and compliant.</p>
+        <div class="hero-btns">
+          <button class="btn-gold" onclick="openLogin()">🔐 Access Wage Portal</button>
+          <button class="btn-outline-white" onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">Learn More →</button>
+        </div>
+      </div>
+      <div class="hero-right">
+        <svg viewBox="0 0 300 260" width="300" height="260" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="245" width="300" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="50" y="130" width="200" height="115" rx="2" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+          <rect x="50" y="128" width="200" height="5" fill="#f5a800" opacity="0.8"/>
+          <rect x="65" y="60" width="26" height="72" rx="2" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <rect x="108" y="38" width="26" height="94" rx="2" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <rect x="188" y="68" width="22" height="64" rx="2" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <ellipse cx="78" cy="52" rx="13" ry="8" fill="rgba(255,255,255,0.06)"/>
+          <ellipse cx="121" cy="28" rx="13" ry="8" fill="rgba(255,255,255,0.06)"/>
+          <ellipse cx="199" cy="60" rx="10" ry="6" fill="rgba(255,255,255,0.05)"/>
+          <rect x="68" y="150" width="20" height="14" rx="2" fill="#f5a800" opacity="0.85"/>
+          <rect x="100" y="150" width="20" height="14" rx="2" fill="#f5a800" opacity="0.5"/>
+          <rect x="132" y="150" width="20" height="14" rx="2" fill="#f5a800" opacity="0.8"/>
+          <rect x="164" y="150" width="20" height="14" rx="2" fill="#f5a800" opacity="0.4"/>
+          <rect x="196" y="150" width="20" height="14" rx="2" fill="#f5a800" opacity="0.7"/>
+          <rect x="68" y="178" width="20" height="14" rx="2" fill="#f5a800" opacity="0.35"/>
+          <rect x="132" y="178" width="20" height="14" rx="2" fill="#f5a800" opacity="0.55"/>
+          <rect x="196" y="178" width="20" height="14" rx="2" fill="#f5a800" opacity="0.3"/>
+          <rect x="132" y="210" width="36" height="35" rx="2" fill="rgba(0,0,0,0.3)"/>
+          <rect x="238" y="120" width="7" height="125" rx="2" fill="rgba(255,255,255,0.2)"/>
+          <rect x="200" y="120" width="50" height="5" rx="2" fill="rgba(255,255,255,0.2)"/>
+          <line x1="210" y1="125" x2="210" y2="168" stroke="#f5a800" stroke-width="1.5" opacity="0.6" stroke-dasharray="4,3"/>
+          <rect x="200" y="166" width="20" height="12" rx="2" fill="rgba(255,255,255,0.15)" stroke="#f5a800" stroke-width="1" opacity="0.7"/>
+          <rect x="14" y="195" width="32" height="50" rx="2" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+          <rect x="20" y="206" width="10" height="9" rx="1" fill="#f5a800" opacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <div class="red-stripe">🏅 Navratna PSE &nbsp;·&nbsp; ISO 9001:2015 Certified &nbsp;·&nbsp; India's First Shore-Based Integrated Steel Plant &nbsp;·&nbsp; 7.3 MTPA Capacity</div>
+
+  <div class="stats">
+    <div class="stats-inner">
+      <div class="stat"><div class="stat-num">9,300+</div><div class="stat-label">Employees & Contractors</div></div>
+      <div class="stat"><div class="stat-num">7.3 MT</div><div class="stat-label">Annual Steel Capacity</div></div>
+      <div class="stat"><div class="stat-num">4</div><div class="stat-label">Worker Categories</div></div>
+      <div class="stat"><div class="stat-num">₹20,492 Cr</div><div class="stat-label">Annual Revenue</div></div>
+    </div>
+  </div>
+
+  <section class="about" id="about">
+    <div class="about-inner">
+      <div class="about-left">
+        <div class="section-tag">About RINL</div>
+        <h2 class="section-title">Rashtriya Ispat Nigam Limited<br>Visakhapatnam Steel Plant</h2>
+        <p class="section-desc">RINL, the corporate entity of Visakhapatnam Steel Plant (VSP), is a Navratna Central Public Sector Enterprise under the Ministry of Steel, Government of India. Established in 1982 and commissioned in 1992, VSP is India's first shore-based integrated steel plant.</p>
+        <p class="section-desc">This Contractor Wage Management System is built to streamline payroll processing for contractors across all worker categories — ensuring timely, accurate, and compliant wage disbursements as per government norms.</p>
+        <button class="btn-login" onclick="openLogin()" style="margin-top:0.5rem;">Access the System</button>
+      </div>
+      <div class="about-right">
+        <div class="about-card"><div class="about-card-icon">⚙️</div><div class="about-card-title">Auto Calculation</div><div class="about-card-desc">Wages computed from attendance with PF, ESI deductions.</div></div>
+        <div class="about-card"><div class="about-card-icon">📋</div><div class="about-card-title">Wage Sheets</div><div class="about-card-desc">Monthly wage sheets per contractor, ready to print.</div></div>
+        <div class="about-card"><div class="about-card-icon">🔐</div><div class="about-card-title">Secure Login</div><div class="about-card-desc">Role-based access for HR, supervisors, and admins.</div></div>
+        <div class="about-card"><div class="about-card-icon">📊</div><div class="about-card-title">Reports</div><div class="about-card-desc">Monthly and yearly payroll summary reports.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="features-inner">
+      <div class="features-header">
+        <div class="section-tag" style="margin-bottom:0.8rem;">System Features</div>
+        <h2 class="section-title">What the Wage System Does</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card"><div class="feature-icon">👷</div><div class="feature-title">Worker Registration</div><div class="feature-desc">Register and manage contractor workers across all four categories under each contractor firm.</div></div>
+        <div class="feature-card"><div class="feature-icon">📅</div><div class="feature-title">Attendance Tracking</div><div class="feature-desc">Daily attendance with present, absent, half-day, and overtime hours for accurate computation.</div></div>
+        <div class="feature-card"><div class="feature-icon">💰</div><div class="feature-title">Wage Computation</div><div class="feature-desc">Auto-calculate gross wages, PF, ESI, overtime, and net payable as per Minimum Wages Act.</div></div>
+        <div class="feature-card"><div class="feature-icon">📄</div><div class="feature-title">Wage Sheet Generation</div><div class="feature-desc">Contractor-wise and category-wise monthly wage sheets ready for approval and printing.</div></div>
+        <div class="feature-card"><div class="feature-icon">🛡️</div><div class="feature-title">Role-Based Access</div><div class="feature-desc">Supervisors, HR managers, and admins each have their own secure access levels.</div></div>
+        <div class="feature-card"><div class="feature-icon">📈</div><div class="feature-title">Analytics & Reports</div><div class="feature-desc">Monthly summaries, contractor-wise payroll reports and workforce category dashboards.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="categories" id="workforce">
+    <div class="categories-inner">
+      <div class="categories-header">
+        <div class="section-tag" style="background:var(--gold); color:#1a1000; margin-bottom:0.8rem;">Workforce</div>
+        <h2 class="section-title">Contractor Worker Categories</h2>
+      </div>
+      <div class="categories-grid">
+        <div class="cat-card"><span class="cat-icon">🦺</span><div class="cat-title">Supervisor</div><div class="cat-desc">Oversees operations, manages teams, and approves daily attendance on the shop floor.</div><div class="cat-badge">Grade A</div></div>
+        <div class="cat-card"><span class="cat-icon">🔧</span><div class="cat-title">Skilled Worker</div><div class="cat-desc">Welders, electricians, machine operators with specialized technical expertise.</div><div class="cat-badge">Grade B</div></div>
+        <div class="cat-card"><span class="cat-icon">⚒️</span><div class="cat-title">Semi-Skilled Worker</div><div class="cat-desc">Workers trained for specific tasks like equipment handling and basic fabrication.</div><div class="cat-badge">Grade C</div></div>
+        <div class="cat-card"><span class="cat-icon">🏗️</span><div class="cat-title">Unskilled Worker</div><div class="cat-desc">General labour — loading, cleaning, material movement and support activities.</div><div class="cat-badge">Grade D</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" id="contact">
+    <div class="cta-inner">
+      <div class="section-tag">Get Started</div>
+      <h2 class="section-title">Ready to Manage Wages Digitally?</h2>
+      <p class="cta-desc">Log in to the RINL Contractor Wage Portal to start generating accurate, compliant wage sheets.</p>
+      <button class="btn-login" style="font-size:15px; padding:12px 30px;" onclick="openLogin()">🔐 &nbsp;Login to Wage Portal</button>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="rinl-name">RINL · <span style="color:var(--gold)">VIZAG STEEL</span></div>
+        <div class="rinl-full">Rashtriya Ispat Nigam Limited<br>Visakhapatnam Steel Plant<br>A Navratna Govt. of India Enterprise</div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Quick Links</div>
+        <a href="#">Home</a><a href="#about">About RINL</a><a href="#features">Wage System</a><a href="#workforce">Workforce</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Contact</div>
+        <a href="#">IT Support: 0891-2518000</a><a href="#">HR Department: ext. 2200</a><a href="#">Contractor Cell: ext. 3100</a><a href="#">vizagsteel.com</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Ministry</div>
+        <a href="#">Ministry of Steel, GoI</a><a href="#">Navratna PSE</a><a href="#">ISO 9001:2015</a><a href="#">ISO 14001:2015</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2026 Rashtriya Ispat Nigam Limited (RINL) – Visakhapatnam Steel Plant. All Rights Reserved. &nbsp;|&nbsp; Contractor Wage Management System v1.0</div>
+  </footer>
+
+  <!-- LOGIN MODAL -->
+  <div class="overlay" id="overlay" onclick="handleOvClick(event)">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <img src="rinl-logo.png" alt="RINL" width="36" height="36" style="object-fit:contain;border-radius:3px;background:#fff;padding:2px;"/>
+          <div>
+            <div class="modal-head-title" id="modalTitle">RINL Wage Portal</div>
+            <div class="modal-head-sub" id="modalSub">Contractor Wage Management System</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeLogin()">✕</button>
+      </div>
+
+      <!-- STEP 1: LOGIN FORM -->
+      <div id="stepLogin" class="modal-body">
+        <div class="govt-badge">🏛️ &nbsp;Government of India Enterprise · Secure Login</div>
+        <div class="err-box" id="errBox">Please fill in all fields to continue.</div>
+        <div class="field">
+          <label class="lbl">Employee / Contractor ID</label>
+          <div class="iw"><span class="ico">🪪</span><input class="inp" type="text" id="empId" placeholder="e.g. RINL-EMP-2024-001"/></div>
+        </div>
+        <div class="field">
+          <label class="lbl">Role</label>
+          <div class="iw"><span class="ico">👤</span>
+            <select class="sel" id="empRole">
+              <option value="" disabled selected>Select your role</option>
+              <option>Supervisor</option>
+              <option>Skilled Worker</option>
+              <option>Semi-Skilled Worker</option>
+              <option>Unskilled Worker</option>
+              <option>HR / Admin</option>
+              <option>Contractor Representative</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Password</label>
+          <div class="iw">
+            <span class="ico">🔑</span>
+            <input class="inp" type="password" id="empPwd" placeholder="Enter your password"/>
+            <button class="eye-btn" onclick="togglePwd()" id="eyeBtn">👁</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Send OTP Via</label>
+          <div class="otp-method-tabs">
+            <button class="method-tab active" id="tabPhone" onclick="switchMethod('phone')">📱 Mobile Number</button>
+            <button class="method-tab" id="tabEmail" onclick="switchMethod('email')">📧 Email Address</button>
+          </div>
+        </div>
+        <div class="field" id="phoneField">
+          <label class="lbl">Mobile Number</label>
+          <div class="iw"><span class="ico">📱</span><input class="inp" type="tel" id="empMobile" placeholder="10-digit mobile number" maxlength="10"/></div>
+        </div>
+        <div class="field" id="emailField" style="display:none;">
+          <label class="lbl">Email Address</label>
+          <div class="iw"><span class="ico">📧</span><input class="inp" type="email" id="empEmail" placeholder="e.g. name@vizagsteel.com"/></div>
+        </div>
+        <div class="row-opts">
+          <label class="remember"><input type="checkbox"/> Remember me</label>
+          <button class="forgot">Forgot password?</button>
+        </div>
+        <button class="signin-btn" onclick="doLogin()">Send OTP & Continue →</button>
+      </div>
+
+      <!-- STEP 2: OTP VERIFICATION -->
+      <div id="stepOtp" class="modal-body" style="display:none;">
+        <div class="otp-info-box">
+          <div class="otp-info-icon">📱</div>
+          <div>
+            <div class="otp-info-title">OTP Sent Successfully!</div>
+            <div class="otp-info-desc">A 6-digit OTP has been sent to <strong id="maskedValue"></strong>. Valid for <span id="otpTimerDisplay">2:00</span> minutes.</div>
+          </div>
+        </div>
+        <div class="err-box" id="errOtp">⚠️ Invalid OTP. Please try again.</div>
+        <div class="success-box" id="successOtp" style="display:none;">✅ OTP verified successfully! Logging you in...</div>
+        <div class="field" style="margin-top:1.2rem;">
+          <label class="lbl">Enter 6-Digit OTP</label>
+          <div class="otp-inputs" id="otpInputs">
+            <input class="otp-box" type="text" maxlength="1" id="otp0" oninput="otpNext(this,0)" onkeydown="otpBack(event,0)"/>
+            <input class="otp-box" type="text" maxlength="1" id="otp1" oninput="otpNext(this,1)" onkeydown="otpBack(event,1)"/>
+            <input class="otp-box" type="text" maxlength="1" id="otp2" oninput="otpNext(this,2)" onkeydown="otpBack(event,2)"/>
+            <input class="otp-box" type="text" maxlength="1" id="otp3" oninput="otpNext(this,3)" onkeydown="otpBack(event,3)"/>
+            <input class="otp-box" type="text" maxlength="1" id="otp4" oninput="otpNext(this,4)" onkeydown="otpBack(event,4)"/>
+            <input class="otp-box" type="text" maxlength="1" id="otp5" oninput="otpNext(this,5)" onkeydown="otpBack(event,5)"/>
+          </div>
+        </div>
+        <button class="signin-btn" onclick="verifyOtp()" id="verifyBtn">Verify OTP & Login</button>
+        <div class="otp-resend">Didn't receive OTP? &nbsp;<button class="resend-btn" id="resendBtn" onclick="resendOtp()" disabled>Resend OTP</button><span id="resendTimer"></span></div>
+        <button class="back-btn" onclick="goBack()">← Back to Login</button>
+      </div>
+
+      <div class="modal-foot">🔒 Secured by RINL IT Department &nbsp;|&nbsp; Support: 0891-2518000</div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

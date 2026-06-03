@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="sidebar">
+    <h2>RINL Admin</h2>
+    <a href="#">Dashboard</a>
+    <a href="#">Approvals</a>
+    <a href="#">Contractors</a>
+    <a href="#">Workers</a>
+    <a href="#">Reports</a>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <main>
+    <h1>Admin Dashboard</h1>
+    <p id="welcome"></p>
+
+    <div class="cards">
+      <div class="card"><h3>Pending Approvals</h3><p>12</p></div>
+      <div class="card"><h3>Total Contractors</h3><p>8</p></div>
+      <div class="card"><h3>Total Workers</h3><p>126</p></div>
+      <div class="card"><h3>Reports Generated</h3><p>24</p></div>
+    </div>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RINL - Contractor Wage Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <span>Visakhapatnam Steel Plant · Visakhapatnam – 530031, Andhra Pradesh</span>
+    <div>
+      <a href="#">Ministry of Steel</a>
+      <a href="#">vizagsteel.com</a>
+      <a href="#">IT Support: 0891-2518000</a>
+    </div>
+  </div>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="rinl-logo" href="#">
+        <div class="rinl-logo-icon">
+          <img src="rinl-logo.png" alt="RINL Logo" width="60" height="60" style="object-fit:contain;border-radius:4px;"/>
+        </div>
+        <div class="rinl-logo-text">
+          <div class="rinl-name">RINL · <span>VIZAG STEEL</span></div>
+          <div class="rinl-full">Rashtriya Ispat Nigam Limited<br>A Navratna Govt. of India Enterprise</div>
+        </div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#roles">Roles</a></li>
+      </ul>
+
+      <button class="btn-login" id="openLoginBtn">Login / Signup</button>
+    </div>
+  </nav>
+
+  <main id="home">
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-left">
+          <div class="hero-badge">Demo Internship Project</div>
+          <h1 class="hero-title">Digital Contractor Wage <span>Management</span></h1>
+          <p class="hero-subtitle">
+            A role-based portal for worker registration, contractor attendance marking,
+            wage calculation, and admin verification.
+          </p>
+          <div class="hero-btns">
+            <button class="btn-gold" id="heroSignupBtn">Create Account</button>
+            <a class="btn-outline-white" href="#features">View Features</a>
+          </div>
+        </div>
+        <div class="hero-card">
+          <h3>Demo Flow</h3>
+          <p>Admin approves contractor</p>
+          <p>Contractor adds worker</p>
+          <p>Attendance is marked</p>
+          <p>Wages are calculated</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="red-stripe">Secure login with Email OTP and Demo Mobile OTP mode</div>
+
+    <section class="stats">
+      <div class="stats-inner">
+        <div class="stat">
+          <div class="stat-num">3</div>
+          <div class="stat-label">User Roles</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">100%</div>
+          <div class="stat-label">Demo Ready</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">OTP</div>
+          <div class="stat-label">Verification</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">SQL</div>
+          <div class="stat-label">PostgreSQL Backend</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="about" id="about">
+      <div class="about-inner">
+        <div class="about-left">
+          <span class="section-tag">About</span>
+          <h2 class="section-title">Worker-focused portal for wage transparency</h2>
+          <p class="section-desc">
+            This system is designed as a polished internship demo for managing daily wage
+            workers under contractors. It focuses on authentication, approval, attendance,
+            and wage calculation.
+          </p>
+          <p class="section-desc">
+            Aadhaar OTP and real SMS OTP are kept as future enhancements to avoid paid or
+            restricted APIs during the demo stage.
+          </p>
+        </div>
+        <div class="about-right">
+          <div class="about-card">
+            <div class="about-card-icon">👷</div>
+            <div class="about-card-title">Workers</div>
+            <div class="about-card-desc">View attendance, wages, and payment status.</div>
+          </div>
+          <div class="about-card">
+            <div class="about-card-icon">🧾</div>
+            <div class="about-card-title">Contractors</div>
+            <div class="about-card-desc">Add workers and mark daily attendance.</div>
+          </div>
+          <div class="about-card">
+            <div class="about-card-icon">✅</div>
+            <div class="about-card-title">Admin</div>
+            <div class="about-card-desc">Approve users and monitor reports.</div>
+          </div>
+          <div class="about-card">
+            <div class="about-card-icon">📊</div>
+            <div class="about-card-title">Reports</div>
+            <div class="about-card-desc">Generate monthly wage and attendance reports.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="features-inner">
+        <div class="features-header">
+          <span class="section-tag">Features</span>
+          <h2 class="section-title">Core modules planned for demo</h2>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">🔐</div>
+            <h3 class="feature-title">Email OTP Authentication</h3>
+            <p class="feature-desc">Signup and verify account using email OTP through backend API.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3 class="feature-title">Demo Mobile OTP</h3>
+            <p class="feature-desc">Mobile OTP screen kept for demo without Twilio/Firebase dependency.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🧑‍💼</div>
+            <h3 class="feature-title">Role-based Access</h3>
+            <p class="feature-desc">Separate dashboards for Admin, Contractor, and Worker.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📝</div>
+            <h3 class="feature-title">Worker Registration</h3>
+            <p class="feature-desc">Store worker details, skill type, contractor, and daily wage.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📅</div>
+            <h3 class="feature-title">Attendance</h3>
+            <p class="feature-desc">Contractor marks present/absent for workers every day.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💰</div>
+            <h3 class="feature-title">Wage Calculation</h3>
+            <p class="feature-desc">Calculate wage using days present multiplied by daily wage.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="categories" id="roles">
+      <div class="categories-inner">
+        <div class="categories-header">
+          <span class="section-tag">Roles</span>
+          <h2 class="section-title">Three login roles</h2>
+        </div>
+        <div class="categories-grid">
+          <div class="cat-card">
+            <span class="cat-icon">👷</span>
+            <h3 class="cat-title">Worker</h3>
+            <p class="cat-desc">View attendance and wage details.</p>
+            <span class="cat-badge">USER</span>
+          </div>
+          <div class="cat-card">
+            <span class="cat-icon">🏗️</span>
+            <h3 class="cat-title">Contractor</h3>
+            <p class="cat-desc">Manage workers and attendance.</p>
+            <span class="cat-badge">MANAGER</span>
+          </div>
+          <div class="cat-card">
+            <span class="cat-icon">🛡️</span>
+            <h3 class="cat-title">Admin</h3>
+            <p class="cat-desc">Approve users and view reports.</p>
+            <span class="cat-badge">ADMIN</span>
+          </div>
+          <div class="cat-card">
+            <span class="cat-icon">📄</span>
+            <h3 class="cat-title">Reports</h3>
+            <p class="cat-desc">Attendance and wage summaries.</p>
+            <span class="cat-badge">OUTPUT</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="rinl-name">RINL <span>Portal</span></div>
+        <div class="rinl-full">Contractor Wage Management System demo</div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Modules</div>
+        <a href="#features">Authentication</a>
+        <a href="#features">Attendance</a>
+        <a href="#features">Wages</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Roles</div>
+        <a href="#roles">Worker</a>
+        <a href="#roles">Contractor</a>
+        <a href="#roles">Admin</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2026 RINL Contractor Wage Management System · Internship Demo</div>
+  </footer>
+
+  <div class="overlay" id="authOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="logo-mark small">R</div>
+          <div>
+            <div class="modal-head-title" id="modalTitle">Login</div>
+            <div class="modal-head-sub" id="modalSubtitle">Access your dashboard</div>
+          </div>
+        </div>
+        <button class="modal-close" id="closeModalBtn">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="err-box" id="messageBox"></div>
+
+        <form id="loginForm" class="auth-form active">
+          <div class="field">
+            <label class="lbl" for="loginEmail">Email</label>
+            <div class="iw"><span class="ico">✉</span><input class="inp" id="loginEmail" type="email" placeholder="Enter email" required /></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="loginPassword">Password</label>
+            <div class="iw"><span class="ico">🔒</span><input class="inp" id="loginPassword" type="password" placeholder="Enter password" required /></div>
+          </div>
+          <div class="row-opts">
+            <label class="remember"><input type="checkbox" /> Remember me</label>
+            <button type="button" class="forgot" id="forgotBtn">Forgot password?</button>
+          </div>
+          <button class="signin-btn" type="submit">Login</button>
+          <div class="switch-text">New user? <button type="button" id="showSignupBtn">Create account</button></div>
+        </form>
+
+        <form id="signupForm" class="auth-form">
+          <div class="govt-badge">Official demo signup with Email OTP verification</div>
+          <div class="field">
+            <label class="lbl" for="signupName">Full Name</label>
+            <div class="iw"><span class="ico">👤</span><input class="inp" id="signupName" type="text" placeholder="Enter full name" required /></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="signupEmail">Email</label>
+            <div class="iw"><span class="ico">✉</span><input class="inp" id="signupEmail" type="email" placeholder="Enter email" required /></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="signupMobile">Mobile Number</label>
+            <div class="iw"><span class="ico">📱</span><input class="inp" id="signupMobile" type="tel" placeholder="10 digit mobile number" maxlength="10" required /></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="signupRole">Role</label>
+            <div class="iw"><span class="ico">⚙</span>
+              <select class="sel" id="signupRole" required>
+                <option value="">Select role</option>
+                <option value="worker">Worker</option>
+                <option value="contractor">Contractor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="signupPassword">Password</label>
+            <div class="iw"><span class="ico">🔒</span><input class="inp" id="signupPassword" type="password" placeholder="Create password" required /></div>
+          </div>
+          <button class="signin-btn" type="submit">Send Email OTP</button>
+          <div class="switch-text">Already have account? <button type="button" id="showLoginBtn">Login</button></div>
+        </form>
+
+        <form id="otpForm" class="auth-form">
+          <div class="otp-info-box">
+            <div class="otp-info-icon">✉</div>
+            <div>
+              <div class="otp-info-title">Email OTP Verification</div>
+              <div class="otp-info-desc">Enter the 6 digit OTP sent to <strong id="otpTarget">your email</strong>.</div>
+            </div>
+          </div>
+          <div class="otp-inputs">
+            <input class="otp-box" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" />
+          </div>
+          <button class="signin-btn" type="submit">Verify OTP</button>
+          <div class="otp-resend">
+            Didn’t receive OTP?
+            <button type="button" class="resend-btn" id="resendOtpBtn">Resend</button>
+          </div>
+          <button class="back-btn" type="button" id="backToSignupBtn">Back to Signup</button>
+        </form>
+      </div>
+
+      <div class="modal-foot">Secure by RINL IT Department  |  Support: 8141467790</div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
