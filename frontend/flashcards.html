@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RINL - Select Portal Role</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="flashcards-page">
+  <section class="flashcards-3d" id="flashcards" aria-label="RINL wage portal role selection">
+    <div class="flashcards-inner">
+      <div class="flashcards-copy">
+        <div class="section-tag">3D Role Selection</div>
+        <h1 class="flashcards-title">Choose Portal Role</h1>
+        <p class="flashcards-desc">Select the required flashcard to open the RINL wage portal landing page.</p>
+      </div>
+
+      <div class="flashcards-stage" data-flash-stage>
+        <div class="flashcard active" style="--i:0;" role="button" tabindex="0" data-role="Admin">
+          <div class="flashcard-face">
+            <span class="flashcard-kicker">01</span>
+            <h2>Admin</h2>
+            <p>Manage users, approvals, wage setup, reports, and secure system access.</p>
+            <strong>Administration</strong>
+          </div>
+        </div>
+
+        <div class="flashcard" style="--i:1;" role="button" tabindex="0" data-role="Engineer Incharge">
+          <div class="flashcard-face">
+            <span class="flashcard-kicker">02</span>
+            <h2>Engineer Incharge</h2>
+            <p>Review contractor work, validate attendance, and support wage approvals.</p>
+            <strong>Work Verification</strong>
+          </div>
+        </div>
+
+        <div class="flashcard" style="--i:2;" role="button" tabindex="0" data-role="Contractor">
+          <div class="flashcard-face">
+            <span class="flashcard-kicker">03</span>
+            <h2>Contractor</h2>
+            <p>Submit worker details, attendance inputs, and contractor wage sheet data.</p>
+            <strong>Contractor Desk</strong>
+          </div>
+        </div>
+
+        <div class="flashcard" style="--i:3;" role="button" tabindex="0" data-role="Workers">
+          <div class="flashcard-face">
+            <span class="flashcard-kicker">04</span>
+            <h2>Workers</h2>
+            <p>View wage category information, attendance status, and payment workflow.</p>
+            <strong>Worker Access</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="flashcard-controls" aria-label="Flashcard controls">
+        <button class="flash-nav-btn" type="button" data-flash-prev aria-label="Previous flashcard">‹</button>
+        <div class="flash-dots" role="tablist" aria-label="Choose role">
+          <button class="flash-dot active" type="button" data-flash-dot="0" aria-label="Show Admin"></button>
+          <button class="flash-dot" type="button" data-flash-dot="1" aria-label="Show Engineer Incharge"></button>
+          <button class="flash-dot" type="button" data-flash-dot="2" aria-label="Show Contractor"></button>
+          <button class="flash-dot" type="button" data-flash-dot="3" aria-label="Show Workers"></button>
+        </div>
+        <button class="flash-nav-btn" type="button" data-flash-next aria-label="Next flashcard">›</button>
+      </div>
+
+      <button class="flash-continue" type="button" data-flash-continue>Continue as Admin</button>
+    </div>
+  </section>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>
