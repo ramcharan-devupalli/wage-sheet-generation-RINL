@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
@@ -22,24 +22,6 @@ async function initializeDatabase() {
       ('RINL-SKL-001', 'Venkat Rao', 'Skilled Worker', '9123456789', 'venkat@vizagsteel.com', '1234'),
       ('RINL-CON-001', 'Sravani Devi', 'Contractor Representative', '9346431127', 'sravani@vizagsteel.com', '1234')
     ON CONFLICT (emp_id) DO NOTHING
-  `);
-
-  await db.query(`
-    INSERT INTO contractors (contractor_id, name, company, mobile, email) VALUES
-      ('CON-001', 'Ramesh Babu', 'Ramesh Constructions', '9111111111', 'ramesh@example.com'),
-      ('CON-002', 'Suresh Goud', 'Suresh Steel Works', '9222222222', 'suresh@example.com'),
-      ('CON-003', 'Lakshmi Devi', 'Lakshmi Enterprises', '9333333333', 'lakshmi@example.com')
-    ON CONFLICT (contractor_id) DO NOTHING
-  `);
-
-  await db.query(`
-    INSERT INTO workers (worker_id, name, category, contractor_id, mobile, daily_wage) VALUES
-      ('WRK-001', 'Anil Kumar', 'Skilled Worker', 'CON-001', '9000000001', 650),
-      ('WRK-002', 'Suresh Rao', 'Unskilled Worker', 'CON-001', '9000000002', 450),
-      ('WRK-003', 'Kavitha Devi', 'Semi-Skilled Worker', 'CON-002', '9000000003', 550),
-      ('WRK-004', 'Ravi Shankar', 'Skilled Worker', 'CON-002', '9000000004', 650),
-      ('WRK-005', 'Meena Kumari', 'Unskilled Worker', 'CON-003', '9000000005', 450)
-    ON CONFLICT (worker_id) DO NOTHING
   `);
 }
 

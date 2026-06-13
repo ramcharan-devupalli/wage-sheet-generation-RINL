@@ -195,6 +195,65 @@ function clearOtpBoxes() {
   }
 }
 
+function formatDashboardDate(date) {
+  return new Intl.DateTimeFormat('en-IN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  }).format(date);
+}
+
+function showDashboardWelcome(destination, employee) {
+  const existingFlash = document.getElementById('dashboardWelcomeFlash');
+  if (existingFlash) existingFlash.remove();
+
+  const name = employee?.name || loginContext.empId || 'RINL Member';
+  const role = employee?.role || loginContext.role || 'Dashboard';
+  const today = formatDashboardDate(new Date());
+  const flash = document.createElement('div');
+  flash.className = 'dashboard-welcome-flash';
+  flash.id = 'dashboardWelcomeFlash';
+
+  const shade = document.createElement('div');
+  shade.className = 'dashboard-welcome-shade';
+
+  const panel = document.createElement('div');
+  panel.className = 'dashboard-welcome-panel';
+
+  const dateLine = document.createElement('p');
+  dateLine.className = 'dashboard-welcome-date';
+  dateLine.textContent = today;
+
+  const title = document.createElement('h1');
+  title.textContent = `Welcome, ${name}`;
+
+  const message = document.createElement('p');
+  message.className = 'dashboard-welcome-message';
+  message.textContent = `Your ${role} dashboard is getting ready.`;
+
+  const quote = document.createElement('p');
+  quote.className = 'dashboard-welcome-quote';
+  quote.textContent = '"Building trust, strength, and progress for every working day."';
+
+  panel.append(dateLine, title, message, quote);
+  flash.append(shade, panel);
+
+  document.body.appendChild(flash);
+  requestAnimationFrame(() => flash.classList.add('active'));
+
+  setTimeout(() => {
+    flash.classList.add('dashboard-welcome-hide');
+    setTimeout(() => {
+      window.location.href = destination;
+    }, 450);
+  }, 3000);
+}
+
 async function verifyOtp() {
   const entered = getEnteredOtp();
   if (entered.length < 6) {
@@ -226,7 +285,9 @@ async function verifyOtp() {
       clearInterval(resendInterval);
       localStorage.setItem('rinlSession', JSON.stringify({ sessionId: data.sessionId, employee: data.employee }));
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        const destinationRole = String(data.employee?.role || loginContext.role || '').toLowerCase();
+        const destination = window.roleDestination ? roleDestination(destinationRole) : 'index.html';
+        showDashboardWelcome(destination, data.employee);
       }, 900);
     } else {
       showError('errOtp', data.message || 'Invalid OTP. Please try again.');

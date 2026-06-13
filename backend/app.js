@@ -14,9 +14,32 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'flashcards.html'));
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'admin.html'));
+});
+
+app.get('/engineer', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'engineerincharge.html'));
+});
+
+app.get('/engineerincharge', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'engineerincharge.html'));
+});
+
+app.get('/contractor', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'contractor.html'));
+});
+
+app.get('/workers', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'workers.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.redirect('/');
+});
 app.use(express.static(frontendPath, { index: false }));
 
 app.use('/', authRoutes);
