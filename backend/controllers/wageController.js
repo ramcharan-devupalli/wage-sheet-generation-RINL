@@ -12,6 +12,35 @@ async function queryOne(sql, params = []) {
 
 async function getWageSheets(req, res, next) {
   try {
+    const { job_cd, muster_month } = req.query;
+    if (job_cd && muster_month) {
+      const [year, month] = String(muster_month).split('-').map(Number);
+      if (!year || !month) {
+        return res.status(400).json({ success: false, message: 'muster_month must be in YYYY-MM format.' });
+      }
+
+      const wages = await queryAll(
+        `SELECT
+           w.name AS worker_name,
+           w.worker_id AS adhar_id,
+           w.category AS worker_skill,
+           COALESCE(SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END), 0)::int AS present,
+           COALESCE(w.daily_wage, 0) AS daily_wage,
+           COALESCE(SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END), 0) * COALESCE(w.daily_wage, 0) AS total_wage
+         FROM workers w
+         LEFT JOIN attendance a
+           ON a.worker_id = w.worker_id
+          AND a.date >= $2::date
+          AND a.date < ($2::date + INTERVAL '1 month')
+         WHERE w.contractor_id = $1
+         GROUP BY w.worker_id, w.name, w.category, w.daily_wage
+         ORDER BY w.name`,
+        [job_cd, `${year}-${String(month).padStart(2, '0')}-01`]
+      );
+
+      return res.json(wages);
+    }
+
     const wages = await queryAll(
       `SELECT ws.*, w.name AS worker_name, w.category, c.name AS contractor_name
        FROM wage_sheets ws

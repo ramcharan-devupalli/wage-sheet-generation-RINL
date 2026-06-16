@@ -5,6 +5,11 @@ const authRoutes = require('./routes/authRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const wageRoutes = require('./routes/wageRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const contractRoutes = require('./routes/contractRoutes');
+const workerRoutes = require('./routes/workerRoutes');
+const musterRoutes = require('./routes/musterRoutes');
+const contractorRouter = require('./routes/contractorRouter');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -46,6 +51,12 @@ app.use('/', authRoutes);
 app.use('/', employeeRoutes);
 app.use('/', attendanceRoutes);
 app.use('/', wageRoutes);
+app.use('/api', wageRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/contracts', contractRoutes);
+app.use('/api/workers', workerRoutes);
+app.use('/api/muster', musterRoutes);
+app.use('/api/contractor', contractorRouter);
 
 app.get('/health', (req, res) => {
   res.json({ success: true, message: 'RINL Wage Portal API is running.' });

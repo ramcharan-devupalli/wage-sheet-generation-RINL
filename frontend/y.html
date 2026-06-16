@@ -3,29 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard</title>
+  <title>Engineer Incharge Dashboard</title>
   <link rel="stylesheet" href="css/admin.css" />
 </head>
 <body>
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-icon">WS</div>
-      <div>
-        <h2>Admin WageSheet</h2>
-        <p>Contract · Workforce · Payroll</p>
-      </div>
-    </div>
+  <div class="brand-icon">EI</div>
+  <div>
+    <h2>Engineer Incharge</h2>
+    <p>Control Dashboard</p>
+  </div>
+</div>
 
-    <p class="side-label">ADMIN SIDEBAR</p>
+   <p class="side-label">ENGINEER INCHARGE</p>
 
     <button class="nav-btn active" data-section="dashboard">Dashboard <span>Home KPIs</span></button>
-    <button class="nav-btn" data-section="users">User Management <span>Users · Roles · Status</span></button>
     <button class="nav-btn" data-section="contracts">Contract Management <span>Contracts · Work Orders</span></button>
     <button class="nav-btn" data-section="workers">Worker Management <span>Workers · Skills</span></button>
     <button class="nav-btn" data-section="muster">Monthly Muster <span>Attendance Summary</span></button>
     <button class="nav-btn" data-section="wages">Wage Expenses <span>Payroll Analytics</span></button>
-    <button class="nav-btn" data-section="uploads">Uploads <span>CSV · Documents</span></button>
-    <button class="nav-btn" data-section="settings">Settings <span>Wage Rates</span></button>
     <button class="nav-btn" data-section="profile">Profile <span>Admin Account</span></button>
 
     <button id="logoutBtn" class="logout-btn">Logout</button>
@@ -34,15 +31,16 @@
   <main class="main">
     <header class="topbar">
       <div>
-        <h1 id="pageTitle">Admin Dashboard Home</h1>
-        <p>High-level control room for contractors, workers, muster and wage sheets.</p>
+       <h1 id="pageTitle">Engineer Incharge Dashboard</h1>
+       <p>
+Monitor contractors, workers, attendance and wage reports.
+</p>
       </div>
       <input id="globalSearch" placeholder="Search users, contracts, workers..." />
     </header>
 
     <section id="dashboard" class="section active">
       <div class="kpi-grid">
-        <div class="kpi blue"><span>Total Users</span><h2 id="totalUsers">0</h2><p>Registered portal users</p></div>
         <div class="kpi teal"><span>Total Contracts</span><h2 id="totalContracts">0</h2><p>Work orders/contracts</p></div>
         <div class="kpi orange"><span>Total Workers</span><h2 id="totalWorkers">0</h2><p>Workers in system</p></div>
         <div class="kpi pink"><span>Muster Entries</span><h2 id="totalMuster">0</h2><p>Monthly attendance records</p></div>
@@ -62,7 +60,6 @@
         <div class="panel">
           <h3>Quick Actions</h3>
           <div class="quick-grid">
-            <button data-section="users">View Users</button>
             <button data-section="contracts">View Contracts</button>
             <button data-section="workers">View Workers</button>
             <button data-section="wages">Wage Expense</button>
@@ -70,20 +67,6 @@
         </div>
       </div>
     </section>
-
-    <section id="users" class="section">
-      <div class="panel">
-        <h3>User Management</h3>
-        <select id="roleFilter">
-          <option value="">All Roles</option>
-          <option value="hr_admin">HR/Admin</option>
-          <option value="contractor_representative">Contractor Representative</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="skilled_worker">Skilled Worker</option>
-          <option value="semi_skilled_worker">Semi-Skilled Worker</option>
-          <option value="unskilled_worker">Unskilled Worker</option>
-        </select>
-
         <table>
           <thead>
             <tr>
@@ -163,18 +146,6 @@
       </div>
     </section>
 
-    <section id="uploads" class="section">
-      <div class="panel-grid">
-        <div class="panel">
-          <h3>Upload Data File</h3>
-          <p class="upload-hint">Choose the table type, then upload CSV, XLS, or XLSX. The data will appear in that section immediately.</p>
-          <select id="csvType">
-            <option value="auto">Auto Detect</option>
-            <option value="users">Users</option>
-            <option value="contracts">Contracts</option>
-            <option value="workers">Workers</option>
-            <option value="muster">Monthly Muster</option>
-          </select>
           <label class="drop-zone" id="csvDropZone" for="csvUpload">
             <strong>Drop CSV/XLS/XLSX here</strong>
             <span>or click to choose one or more data files</span>
@@ -196,18 +167,6 @@
             <li>No documents uploaded.</li>
           </ul>
         </div>
-      </div>
-    </section>
-
-    <section id="settings" class="section">
-      <div class="panel">
-        <h3>Wage Rate Settings</h3>
-        <table>
-          <thead>
-            <tr><th>Skill</th><th>Daily Wage</th><th>Update</th></tr>
-          </thead>
-          <tbody id="ratesBody"></tbody>
-        </table>
       </div>
     </section>
 
