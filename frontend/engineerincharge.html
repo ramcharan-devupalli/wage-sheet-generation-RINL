@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engineer In-Charge Dashboard</title>
+  <link rel="stylesheet" href="css/engineer.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">EIC</div>
+        <div>
+          <h1>Engineer In-Charge</h1>
+          <p>Contract labour control desk</p>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Engineer dashboard navigation">
+        <button class="nav-item active" data-target="overview">Dashboard</button>
+        <button class="nav-item" data-target="contractors">Contractors</button>
+        <button class="nav-item" data-target="analytics">Analytics</button>
+        <button class="nav-item" data-target="attendance">Attendance</button>
+        <button class="nav-item" data-target="wages">Wage Approval</button>
+        <button class="nav-item" data-target="overtime">Overtime</button>
+        <button class="nav-item" data-target="compliance">Compliance</button>
+        <button class="nav-item" data-target="progress">Progress</button>
+        <button class="nav-item" data-target="reports">Reports</button>
+        <button class="nav-item" data-target="alerts">Alerts</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">RINL WageSheet Project</p>
+          <h2>Engineer In-Charge Dashboard</h2>
+          <p class="subhead">Monitor contractors, verify attendance, approve wage sheets, and keep compliance visible.</p>
+        </div>
+        <div class="top-actions">
+          <input id="globalSearch" type="search" placeholder="Search contractor, worker, work order..." />
+          <label class="upload-action" for="documentUpload">Upload CSV / XLS / XLSX</label>
+          <input id="documentUpload" class="file-input" type="file" accept=".csv,.xls,.xlsx" />
+          <span class="upload-meta" id="uploadMeta">No file uploaded</span>
+          <button class="primary-action" id="refreshBtn">Refresh</button>
+        </div>
+      </header>
+
+      <section class="section active" id="overview">
+        <div class="metric-grid" id="metricGrid"></div>
+
+        <div class="dashboard-alerts">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Alerts & Notifications</h3>
+                <p>Items needing engineer attention.</p>
+              </div>
+              <button class="text-action" data-target="alerts">Review</button>
+            </div>
+            <div class="alert-list" id="overviewAlerts"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" id="contractors">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Contractor Monitoring</h3>
+              <p>View details, attendance, wage sheets, and approve or reject submissions.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Contractor</th>
+                  <th>Workers</th>
+                  <th>Present</th>
+                  <th>Absent</th>
+                  <th>Overtime</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="contractorRowsFull"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="section" id="analytics">
+        <div class="analytics-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Worker Category Distribution</h3>
+                <p>Supervisors, skilled, semi-skilled, and unskilled workers.</p>
+              </div>
+            </div>
+            <div class="donut-area">
+              <div class="donut" id="categoryDonut"></div>
+              <div class="legend" id="categoryLegend"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Daily Attendance Trend</h3>
+                <p>Present headcount across recent work days.</p>
+              </div>
+            </div>
+            <div class="chart-bars" id="dailyTrend"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Monthly Attendance Trend</h3>
+                <p>Month-wise attendance percentage.</p>
+              </div>
+            </div>
+            <div class="line-chart" id="monthlyTrend"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Contractor-wise Workforce Strength</h3>
+                <p>Approved workforce strength by contractor.</p>
+              </div>
+            </div>
+            <div class="horizontal-bars" id="strengthBars"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" id="attendance">
+        <section class="panel">
+          <div class="panel-head filter-head">
+            <div>
+              <h3>Attendance Verification</h3>
+              <p>Verify muster rolls, flag suspicious attendance, and compare against wage sheet entries.</p>
+            </div>
+            <div class="filters">
+              <select id="contractorFilter" aria-label="Contractor filter"></select>
+              <input type="date" id="dateFilter" aria-label="Date filter" />
+              <select id="departmentFilter" aria-label="Department filter">
+                <option value="all">All Departments</option>
+                <option>Mechanical</option>
+                <option>Electrical</option>
+                <option>Civil</option>
+                <option>Utilities</option>
+              </select>
+            </div>
+          </div>
+          <div class="verification-grid">
+            <button class="verify-tile" data-message="Muster roll opened for review.">View uploaded muster rolls</button>
+            <button class="verify-tile" data-message="Attendance marked as verified.">Verify attendance</button>
+            <button class="verify-tile warn" data-message="Suspicious attendance flagged.">Flag suspicious attendance</button>
+            <button class="verify-tile" data-message="Attendance compared with wage sheet.">Compare attendance vs wage sheet</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Contractor</th>
+                  <th>Date</th>
+                  <th>Department</th>
+                  <th>Muster Roll</th>
+                  <th>Attendance</th>
+                  <th>Wage Match</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="attendanceRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="section" id="wages">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Wage Sheet Approval</h3>
+              <p>View wage sheet, verify calculations, approve, reject, and add remarks.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Contractor</th>
+                  <th>Month</th>
+                  <th>Workers</th>
+                  <th>Wage Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="wageRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="section" id="overtime">
+        <div class="split-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Overtime Monitoring</h3>
+                <p>Worker, contractor, hours, and overtime amount.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Worker</th>
+                    <th>Contractor</th>
+                    <th>Hours</th>
+                    <th>Amount</th>
+                    <th>Alert</th>
+                  </tr>
+                </thead>
+                <tbody id="overtimeRows"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Overtime Charts</h3>
+                <p>Contractor-wise overtime and top overtime workers.</p>
+              </div>
+            </div>
+            <div class="horizontal-bars" id="overtimeContractorBars"></div>
+            <div class="divider"></div>
+            <div class="horizontal-bars compact" id="topOvertimeBars"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" id="compliance">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Compliance Dashboard</h3>
+              <p>PF, ESI, minimum wage, missing attendance, and document compliance.</p>
+            </div>
+          </div>
+          <div class="compliance-grid" id="complianceGrid"></div>
+        </section>
+      </section>
+
+      <section class="section" id="progress">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Project Progress Tracking</h3>
+              <p>Work order progress and status by contractor.</p>
+            </div>
+          </div>
+          <div class="progress-list" id="progressList"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Work Order</th>
+                  <th>Contractor</th>
+                  <th>Progress</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="progressRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="section" id="reports">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Reports Section</h3>
+              <p>Generate and export operational reports.</p>
+            </div>
+            <div class="export-actions">
+              <button class="secondary-action" data-message="PDF export queued.">PDF</button>
+              <button class="secondary-action" data-message="Excel export queued.">Excel</button>
+            </div>
+          </div>
+          <div class="report-grid">
+            <button data-message="Attendance report generated.">Attendance Report</button>
+            <button data-message="Wage report generated.">Wage Report</button>
+            <button data-message="Overtime report generated.">Overtime Report</button>
+            <button data-message="Contractor performance report generated.">Contractor Performance Report</button>
+            <button data-message="Monthly summary report generated.">Monthly Summary Report</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="section" id="alerts">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Alerts & Notifications</h3>
+              <p>Uploaded wage sheets, mismatches, overtime breaches, pending approvals, and compliance issues.</p>
+            </div>
+          </div>
+          <div class="alert-list full" id="alertRows"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog class="remarks-dialog" id="remarksDialog">
+    <form method="dialog">
+      <h3>Add Engineer Remarks</h3>
+      <p id="remarksContext">Record verification comments for this submission.</p>
+      <textarea id="remarksText" rows="5" placeholder="Enter remarks..."></textarea>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary-action">Cancel</button>
+        <button value="submit" class="primary-action" id="saveRemarksBtn">Save Remarks</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="js/session-routing.js"></script>
+  <script src="js/engineer.js"></script>
+</body>
+</html>

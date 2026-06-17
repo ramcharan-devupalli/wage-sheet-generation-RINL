@@ -1,0 +1,354 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RINL Worker Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0"></script>
+  <link rel="stylesheet" href="css/worker.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">WK</div>
+        <div>
+          <h2>Worker Portal</h2>
+          <p>WageSheet Â· My Account</p>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="avatar" id="avatarInitials">--</div>
+        <h3 id="sidebarName">Loading...</h3>
+        <p id="sidebarSkill">Loading...</p>
+        <p>RINL Wage Portal</p>
+        <span class="pill">Self Service</span>
+      </div>
+
+      <div class="menu-title">MY PORTAL</div>
+      <nav class="menu" aria-label="Worker portal pages">
+        <a href="#dashboard" class="nav-link active" data-page="dashboard">Dashboard<small>Overview</small></a>
+        <a href="#attendance" class="nav-link" data-page="attendance">Attendance<small>Charts & monthly record</small></a>
+        <a href="#wageslip" class="nav-link" data-page="wageslip">Wage Slip<small>Generate & print</small></a>
+        <a href="#leave" class="nav-link" data-page="leave">Leave<small>Apply & status</small></a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <h1 id="pageHeading">My Dashboard</h1>
+          <p id="pageSubheading">Your attendance, wage slip, and leave updates for this month.</p>
+        </div>
+
+        <div class="top-actions">
+          <input type="text" class="search-box" id="recordSearch" placeholder="Search my records..." />
+          <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
+      <section class="page active" id="page-dashboard">
+        <section class="cards">
+          <div class="card">
+            <div class="stat-label">This month</div>
+            <div class="stat-value" id="daysWorkedCard">Days Worked: --</div>
+            <div class="section-title">Attendance summary</div>
+            <div class="progress"><span class="orange" id="daysWorkedProgress" style="width:0%"></span></div>
+          </div>
+
+          <div class="card">
+            <div class="stat-label">This month</div>
+            <div class="stat-value" id="netWageCard">Net Wage: â‚¹--</div>
+            <div class="section-title">After deductions</div>
+            <div class="progress"><span class="green" id="netWageProgress" style="width:0%"></span></div>
+          </div>
+
+          <div class="card">
+            <div class="stat-label">Before deductions</div>
+            <div class="stat-value" id="grossWageCard">Gross Wage: â‚¹--</div>
+            <div class="section-title">Gross amount</div>
+            <div class="progress"><span class="blue" id="grossWageProgress" style="width:0%"></span></div>
+          </div>
+
+          <div class="card">
+            <div class="stat-label">Shift</div>
+            <div class="stat-value" id="shiftHoursCard">Shift: -- hrs</div>
+            <div class="section-title">Working hours</div>
+            <div class="progress"><span class="purple" id="shiftProgress" style="width:0%"></span></div>
+          </div>
+        </section>
+
+        <section class="grid-2">
+          <div class="card">
+            <h2>My Account Summary</h2>
+            <p class="section-title">Worker details and current month overview</p>
+
+            <div class="summary-grid">
+              <div class="mini-box">
+                <h4>Worker Details</h4>
+                <p><strong>Login ID:</strong> <span id="loginId">--</span></p>
+                <p><strong>Worker ID:</strong> <span id="workerId">--</span></p>
+                <p><strong>Job Code:</strong> <span id="jobCode">--</span></p>
+                <p><strong>Name:</strong> <span id="workerName">--</span></p>
+                <p><strong>DOB:</strong> <span id="workerDob">--</span></p>
+                <p><strong>Skill:</strong> <span id="workerSkill">--</span></p>
+                <p><strong>Shift Hours:</strong> <span id="workerShift">--</span></p>
+              </div>
+
+              <div class="mini-box">
+                <h4>Attendance</h4>
+                <p><strong>Present Days:</strong> <span id="presentDays">--</span></p>
+                <p><strong>Absent Days:</strong> <span id="absentDays">--</span></p>
+                <p><strong>Weekly Off:</strong> <span id="weeklyOff">--</span></p>
+                <p><strong>Holidays:</strong> <span id="holidays">--</span></p>
+              </div>
+
+              <div class="mini-box">
+                <h4>Wage Sheet</h4>
+                <p><strong>Daily Wage:</strong> â‚¹<span id="dailyWage">--</span></p>
+                <p><strong>Gross Wage:</strong> â‚¹<span id="grossWage">--</span></p>
+                <p><strong>PF (5%):</strong> â‚¹<span id="pfAmount">--</span></p>
+                <p><strong>Insurance (2%):</strong> â‚¹<span id="insuranceAmount">--</span></p>
+                <p><strong>Net Wage:</strong> â‚¹<span id="netWage">--</span></p>
+              </div>
+
+              <div class="mini-box">
+                <h4>Leave & Status</h4>
+                <p><strong>Current Leave Status:</strong> <span id="leaveStatusText">--</span></p>
+                <p><strong>Approval:</strong> <span id="approvalStatusText">--</span></p>
+                <p><strong>Applied To:</strong> <span id="appliedToText">--</span></p>
+                <p><strong>Notification:</strong> <span id="notificationText">--</span></p>
+              </div>
+            </div>
+
+            <table class="worker-table">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Worker Skill</td>
+                  <td id="tableSkill">--</td>
+                  <td><span class="status approved">Active</span></td>
+                </tr>
+                <tr>
+                  <td>Attendance</td>
+                  <td id="tableAttendance">--</td>
+                  <td><span class="status approved">Updated</span></td>
+                </tr>
+                <tr>
+                  <td>Wage Sheet</td>
+                  <td id="tableWage">--</td>
+                  <td><span class="status pending">Generated</span></td>
+                </tr>
+                <tr>
+                  <td>Leave Request</td>
+                  <td id="tableLeave">--</td>
+                  <td id="tableLeaveStatusWrap"><span class="status pending">Pending</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="note" id="leaveNote">No new leave updates.</div>
+          </div>
+
+          <div class="card">
+            <h2>Quick Actions</h2>
+            <p class="section-title">Worker shortcuts</p>
+
+            <div class="action-grid">
+              <button class="action-btn" id="goAttendanceBtn">Open Attendance</button>
+              <button class="action-btn" id="goWageSlipBtn">Open Wage Slip</button>
+              <button class="action-btn" id="openLeaveBtn">Apply for Leave</button>
+              <button class="action-btn" id="printQuickBtn">Print Wage Sheet</button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="page-attendance">
+        <section class="card">
+          <h2>My Attendance</h2>
+          <p class="section-title">Choose how you want to view your attendance data.</p>
+
+          <div class="radio-row">
+            <label><input type="radio" name="chartType" value="bar" checked> Bar</label>
+            <label><input type="radio" name="chartType" value="line"> Line</label>
+            <label><input type="radio" name="chartType" value="doughnut"> Doughnut</label>
+          </div>
+
+          <div class="summary-grid">
+            <div class="mini-box">
+              <h4>Monthly Attendance</h4>
+              <p><strong>Present:</strong> <span id="attPresent">--</span></p>
+              <p><strong>Absent:</strong> <span id="attAbsent">--</span></p>
+              <p><strong>Weekly Off:</strong> <span id="attWeeklyOff">--</span></p>
+              <p><strong>Holidays:</strong> <span id="attHolidays">--</span></p>
+            </div>
+            <div class="mini-box">
+              <h4>Attendance Insight</h4>
+              <p id="attendanceInsight">Attendance summary will appear here.</p>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <canvas id="attendanceChart"></canvas>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="page-wageslip">
+        <section class="card">
+          <h2>Wage Slip</h2>
+          <p class="section-title">Generate, open, and print your wage sheet.</p>
+
+          <div class="sheet-toolbar">
+            <p>Use the action button to open the wage sheet panel and print it.</p>
+            <div class="form-actions" style="margin-top:0;">
+              <button class="btn-light" id="toggleSheetBtn">Open Wage Sheet</button>
+              <button class="btn-primary" id="printWageSheetBtn">Print / Save PDF</button>
+            </div>
+          </div>
+
+          <div class="sheet-panel" id="sheetPanel">
+            <div id="printableWageSheet">
+              <div class="sheet-top">
+                <div>
+                  <div class="sheet-title">Worker Wage Sheet</div>
+                  <div class="sheet-muted">Generated from dashboard</div>
+                </div>
+                <div>
+                  <div class="sheet-muted">Month: Current Month</div>
+                  <div class="sheet-muted">Status: Ready</div>
+                </div>
+              </div>
+
+              <div class="sheet-grid">
+                <div class="sheet-block">
+                  <h4>Worker Info</h4>
+                  <p><strong>Login ID:</strong> <span id="sheetLoginId">--</span></p>
+                  <p><strong>Worker ID:</strong> <span id="sheetWorkerId">--</span></p>
+                  <p><strong>Name:</strong> <span id="sheetWorkerName">--</span></p>
+                  <p><strong>Skill:</strong> <span id="sheetSkill">--</span></p>
+                </div>
+
+                <div class="sheet-block">
+                  <h4>Attendance</h4>
+                  <p><strong>Present Days:</strong> <span id="sheetPresent">--</span></p>
+                  <p><strong>Absent Days:</strong> <span id="sheetAbsent">--</span></p>
+                  <p><strong>Weekly Off:</strong> <span id="sheetWeeklyOff">--</span></p>
+                  <p><strong>Shift Hours:</strong> <span id="sheetShift">--</span></p>
+                </div>
+
+                <div class="sheet-block">
+                  <h4>Earnings</h4>
+                  <p><strong>Daily Wage:</strong> â‚¹<span id="sheetDailyWage">--</span></p>
+                  <p><strong>Gross Wage:</strong> â‚¹<span id="sheetGrossWage">--</span></p>
+                </div>
+
+                <div class="sheet-block">
+                  <h4>Deductions</h4>
+                  <p><strong>PF (5%):</strong> â‚¹<span id="sheetPf">--</span></p>
+                  <p><strong>Insurance (2%):</strong> â‚¹<span id="sheetInsurance">--</span></p>
+                  <p><strong>Net Wage:</strong> â‚¹<span id="sheetNetWage">--</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="page-leave">
+        <section class="card">
+          <h2>Leave</h2>
+          <p class="section-title">Apply leave, check leave usage, and see approval updates.</p>
+
+          <div class="leave-stats">
+            <div class="leave-card">
+              <h4>Leaves Used</h4>
+              <div class="big" id="leaveUsed">--</div>
+            </div>
+            <div class="leave-card">
+              <h4>Pending Leaves</h4>
+              <div class="big" id="leavePendingCount">--</div>
+            </div>
+            <div class="leave-card">
+              <h4>Leave Balance</h4>
+              <div class="big" id="leaveBalance">--</div>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div class="mini-box">
+              <h4>Current Leave Status</h4>
+              <p><strong>Status:</strong> <span id="leavePageStatus">--</span></p>
+              <p><strong>Approval:</strong> <span id="leavePageApproval">--</span></p>
+              <p><strong>Applied To:</strong> <span id="leavePageAppliedTo">--</span></p>
+              <p><strong>Notification:</strong> <span id="leavePageNotification">--</span></p>
+            </div>
+
+            <div class="mini-box">
+              <h4>How leave goes to supervisor</h4>
+              <p>When you submit leave, the frontend sends the form to your backend API.</p>
+              <p>The backend stores it in a leave table with worker ID, approver ID, dates, reason, and status as pending.</p>
+              <p>The supervisor page then reads those pending requests for approval.</p>
+            </div>
+          </div>
+
+          <div class="form-actions" style="justify-content:flex-start;">
+            <button class="btn-primary" id="applyLeaveBtn">Apply for Leave</button>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="leaveModal">
+    <div class="modal-box">
+      <h3>Apply for Leave</h3>
+      <p>Select your leave dates and submit the request to supervisor / contractor.</p>
+
+      <div class="form-group">
+        <label for="leaveFrom">From Date</label>
+        <input type="date" id="leaveFrom">
+      </div>
+
+      <div class="form-group">
+        <label for="leaveTo">To Date</label>
+        <input type="date" id="leaveTo">
+      </div>
+
+      <div class="form-group">
+        <label for="leaveReason">Reason</label>
+        <textarea id="leaveReason" rows="4" placeholder="Enter reason for leave"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="leaveToWhom">Apply To</label>
+        <select id="leaveToWhom">
+          <option value="Supervisor">Supervisor</option>
+          <option value="Contractor">Contractor</option>
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-light" id="cancelLeaveBtn">Cancel</button>
+        <button class="btn-primary" id="submitLeaveBtn">Submit Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="js/api.js"></script>
+  <script src="js/session-routing.js"></script>
+  <script src="js/worker.js"></script>
+</body>
+</html>
