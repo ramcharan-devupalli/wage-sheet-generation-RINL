@@ -39,7 +39,11 @@ app.get('/contractor', (req, res) => {
 });
 
 app.get('/workers', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'workers.html'));
+  res.sendFile(path.join(frontendPath, 'worker.html'));
+});
+
+app.get('/worker', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'worker.html'));
 });
 
 app.get('/dashboard', (req, res) => {
@@ -54,6 +58,7 @@ app.use('/', wageRoutes);
 app.use('/api', wageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api/worker', workerRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/muster', musterRoutes);
 app.use('/api/contractor', contractorRouter);

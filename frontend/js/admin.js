@@ -4,6 +4,9 @@ const API_BASE = ["file:", "http:"].includes(window.location.protocol)
   ? "http://localhost:3000/api"
   : "/api";
 
+if (typeof applySessionToPage === "function") applySessionToPage("admin.html");
+if (typeof bindLogoutButtons === "function") bindLogoutButtons();
+
 const session = JSON.parse(localStorage.getItem("rinlSession") || "null");
 const user = session?.employee || {
   name: "Admin",
