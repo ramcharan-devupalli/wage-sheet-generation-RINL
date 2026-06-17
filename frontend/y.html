@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engineer Incharge Dashboard</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+  <div class="brand-icon">EI</div>
+  <div>
+    <h2>Engineer Incharge</h2>
+    <p>Control Dashboard</p>
+  </div>
+</div>
+
+   <p class="side-label">ENGINEER INCHARGE</p>
+
+    <button class="nav-btn active" data-section="dashboard">Dashboard <span>Home KPIs</span></button>
+    <button class="nav-btn" data-section="contracts">Contract Management <span>Contracts · Work Orders</span></button>
+    <button class="nav-btn" data-section="workers">Worker Management <span>Workers · Skills</span></button>
+    <button class="nav-btn" data-section="muster">Monthly Muster <span>Attendance Summary</span></button>
+    <button class="nav-btn" data-section="wages">Wage Expenses <span>Payroll Analytics</span></button>
+    <button class="nav-btn" data-section="profile">Profile <span>Admin Account</span></button>
+
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+       <h1 id="pageTitle">Engineer Incharge Dashboard</h1>
+       <p>
+Monitor contractors, workers, attendance and wage reports.
+</p>
+      </div>
+      <input id="globalSearch" placeholder="Search users, contracts, workers..." />
+    </header>
+
+    <section id="dashboard" class="section active">
+      <div class="kpi-grid">
+        <div class="kpi teal"><span>Total Contracts</span><h2 id="totalContracts">0</h2><p>Work orders/contracts</p></div>
+        <div class="kpi orange"><span>Total Workers</span><h2 id="totalWorkers">0</h2><p>Workers in system</p></div>
+        <div class="kpi pink"><span>Muster Entries</span><h2 id="totalMuster">0</h2><p>Monthly attendance records</p></div>
+        <div class="kpi purple"><span>Total Wage</span><h2 id="totalWage">₹0</h2><p>Calculated payroll amount</p></div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="panel">
+          <h3>Dashboard Overview</h3>
+          <ul>
+            <li>Monitor total users and roles</li>
+            <li>Track contracts and worker count</li>
+            <li>View payroll generated from monthly muster</li>
+            <li>Manage wage rates from settings</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Quick Actions</h3>
+          <div class="quick-grid">
+            <button data-section="contracts">View Contracts</button>
+            <button data-section="workers">View Workers</button>
+            <button data-section="wages">Wage Expense</button>
+          </div>
+        </div>
+      </div>
+    </section>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="contracts" class="section">
+      <div class="panel">
+        <h3>Contract Management</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Job Code</th><th>Contractor</th><th>Phone</th><th>Work Area</th><th>Dept</th><th>Period</th>
+            </tr>
+          </thead>
+          <tbody id="contractsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="workers" class="section">
+      <div class="panel">
+        <h3>Worker Management</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Aadhaar ID</th><th>Name</th><th>Job Code</th><th>Designation</th><th>Skill</th><th>Gender</th>
+            </tr>
+          </thead>
+          <tbody id="workersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="muster" class="section">
+      <div class="panel">
+        <h3>Monthly Muster</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Worker</th><th>Job Code</th><th>Month</th><th>P</th><th>A</th><th>WO</th><th>H</th><th>L</th>
+            </tr>
+          </thead>
+          <tbody id="musterBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="wages" class="section">
+      <div class="panel">
+        <h3>Monthly Wage Expense Analysis</h3>
+        <label>Select Month</label>
+        <input type="month" id="expenseMonth" />
+        <button id="loadExpenseBtn">Load Expense Report</button>
+      </div>
+
+      <div class="panel">
+        <h3>Job-wise Wage Expenses</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Job Code</th><th>Contractor</th><th>Workers</th><th>Present Days</th><th>Expense</th>
+            </tr>
+          </thead>
+          <tbody id="expenseBody">
+            <tr><td colspan="5">Select a month to view wage expenses.</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:20px;font-size:22px;font-weight:700;color:#0f4c97;">
+          Total Monthly Expense: <span id="totalExpense">₹0</span>
+        </div>
+      </div>
+    </section>
+
+          <label class="drop-zone" id="csvDropZone" for="csvUpload">
+            <strong>Drop CSV/XLS/XLSX here</strong>
+            <span>or click to choose one or more data files</span>
+          </label>
+          <input type="file" id="csvUpload" accept=".csv,.xls,.xlsx,text/csv" multiple hidden />
+          <button id="clearUploadedDataBtn">Clear Uploaded Data</button>
+          <p id="csvUploadStatus" class="upload-status">No CSV uploaded.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Upload Documents</h3>
+          <p class="upload-hint">Attach any type of file for admin reference, including XLS and XLSX files.</p>
+          <label class="drop-zone" id="documentDropZone" for="documentUpload">
+            <strong>Drop documents here</strong>
+            <span>or click to choose any file type</span>
+          </label>
+          <input type="file" id="documentUpload" multiple hidden />
+          <ul id="documentList" class="document-list">
+            <li>No documents uploaded.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="profile" class="section">
+      <div class="panel profile">
+        <h3>Admin Profile</h3>
+        <p><strong>Name:</strong> <span id="profileName">-</span></p>
+        <p><strong>Email:</strong> <span id="profileEmail">-</span></p>
+        <p><strong>Employee ID:</strong> <span id="profileEmployeeId">-</span></p>
+        <p><strong>Role:</strong> <span id="profileRole">-</span></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

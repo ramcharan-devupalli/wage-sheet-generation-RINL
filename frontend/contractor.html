@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contractor Dashboard - WageSheet</title>
+  <link rel="stylesheet" href="contractor.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CO</div>
+      <div><h1>Contractor Portal</h1><span>RINL WageSheet System</span></div>
+    </div>
+    <div class="user-badge">
+      <div class="avatar">CT</div>
+      <div><b data-session-name>Contractor User</b><span data-session-role>Contractor</span></div>
+    </div>
+    <div class="side-title">Sidebar Modules</div>
+    <nav class="nav" id="sideNav"></nav>
+  </aside>
+
+  <main>
+    <section class="topbar">
+      <div class="headline"><h2 id="pageTitle"></h2><p id="pageCopy"></p></div>
+      <div class="tools">
+        <input class="search" id="searchInput" placeholder="Search dashboard records">
+        <label class="btn file-btn">Upload File<input type="file" id="dataFileInput" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
+        <button class="btn" type="button" id="exportBtn">Download Current View</button>
+        <button class="btn danger" type="button" data-logout>Logout</button>
+      </div>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="grid">
+      <div class="stack">
+        <section class="panel" id="dashboardModulesPanel">
+          <div class="panel-head">
+            <div><h3 id="moduleTitle"></h3><span id="moduleHint"></span></div>
+          </div>
+          <div id="moduleArea"></div>
+        </section>
+
+        <section class="panel" id="workPanel">
+          <div class="panel-head">
+            <div><h3 id="workTitle"></h3><span id="workHint"></span></div>
+          </div>
+          <div id="workArea"></div>
+        </section>
+
+        <section class="panel" id="tablePanel">
+          <div class="panel-head">
+            <div><h3 id="tableTitle"></h3><span id="tableHint"></span></div>
+          </div>
+          <div class="table-wrap"><table id="dataTable"></table></div>
+        </section>
+      </div>
+
+      <aside class="stack">
+        <section class="panel">
+          <div class="panel-head"><div><h3>Quick Actions</h3><span id="actionHint"></span></div></div>
+          <div class="action-grid" id="quickActions"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><h3>Analytics</h3><span id="chartHint"></span></div></div>
+          <div class="bar-chart" id="chartArea"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><h3>Notifications</h3><span>Approvals, rejections, OT and expiry alerts</span></div></div>
+          <div class="notice-list" id="notifications"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="dialog">
+    <div class="panel-head">
+      <div><h3 id="modalTitle"></h3><span id="modalHint"></span></div>
+      <button class="btn" type="button" onclick="closeModal()">Close</button>
+    </div>
+    <form id="modalForm">
+      <div class="section-body"><div class="form-grid" id="modalFields"></div></div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" onclick="closeModal()">Cancel</button>
+        <button class="btn primary" type="submit" id="modalSubmit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="toast" id="toast">Saved</div>
+
+<script src="js/api.js"></script>
+<script src="js/session-routing.js"></script>
+<script src="contractor.js"></script>
+</body>
+</html>
