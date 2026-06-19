@@ -27,16 +27,28 @@ const documentUpload = document.getElementById("documentUpload");
 const documentList = document.getElementById("documentList");
 const csvDropZone = document.getElementById("csvDropZone");
 const documentDropZone = document.getElementById("documentDropZone");
+const summaryReviewBody = document.getElementById("summaryReviewBody");
+const summaryReviewDialog = document.getElementById("summaryReviewDialog");
+const summaryReviewDetails = document.getElementById("summaryReviewDetails");
+const summaryReviewTitle = document.getElementById("summaryReviewTitle");
+const summaryReviewMeta = document.getElementById("summaryReviewMeta");
+const adminSummaryNote = document.getElementById("adminSummaryNote");
+const approveSummaryBtn = document.getElementById("approveSummaryBtn");
+const adminAlertList = document.getElementById("adminAlertList");
 
 const sections = document.querySelectorAll(".section");
 const navBtns = document.querySelectorAll(".nav-btn");
 const pageTitle = document.getElementById("pageTitle");
+const ENGINEER_SUMMARY_KEY = "rinl_engineer_summary_submissions";
+const LOCAL_WAGE_KEY = "rinl_wage_sheet_submissions";
 
 let users = [];
 let contracts = [];
 let workers = [];
 let muster = [];
+let wageExpenses = [];
 let uploadedDocuments = JSON.parse(localStorage.getItem("adminUploadedDocuments") || "[]");
+let activeSummaryReviewId = "";
 
 navBtns.forEach((btn) => {
   btn.addEventListener("click", () => showSection(btn.dataset.section, btn));
@@ -55,6 +67,24 @@ documentUpload.addEventListener("change", handleDocumentUpload);
 clearUploadedDataBtn.addEventListener("click", clearUploadedData);
 setupDropZone(csvDropZone, handleCsvFiles);
 setupDropZone(documentDropZone, handleDocumentFiles);
+approveSummaryBtn.addEventListener("click", approveSummaryReview);
+
+document.body.addEventListener("click", (event) => {
+  const reviewButton = event.target.closest("[data-summary-review]");
+  if (reviewButton) openSummaryReview(reviewButton.dataset.summaryReview);
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key === ENGINEER_SUMMARY_KEY || event.key === LOCAL_WAGE_KEY || event.key === "adminUploadedDocuments") {
+    renderSummaryReviews();
+    renderAdminAlerts();
+  }
+});
+
+window.addEventListener("focus", () => {
+  renderSummaryReviews();
+  renderAdminAlerts();
+});
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
@@ -141,6 +171,25 @@ function pick(row, keys, fallback = "-") {
   return fallback;
 }
 
+const PRESENT_KEYS = ["present", "p", "days_present", "present_days", "total_present_days", "present_day", "attendance_days", "worked_days", "work_days"];
+const RATE_KEYS = ["daily_wage", "wage", "wage_rate", "rate", "daily_rate", "rate_per_day", "wage_per_day", "basic_wage", "basic_rate", "per_day_rate", "per_day_wage"];
+const EXPENSE_KEYS = ["expense", "wage_expense", "total_expense", "monthly_expense", "gross_wage", "gross", "total_wage", "net_wage", "net", "amount", "total_amount", "wage_amount", "salary", "payroll"];
+
+function toNumber(value) {
+  const cleaned = String(value ?? "")
+    .replace(/,/g, "")
+    .replace(/rs\.?/gi, "")
+    .replace(/[^\d.-]/g, "")
+    .trim();
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function pickNumber(row, keys, fallback = 0) {
+  const value = pick(row, keys, fallback);
+  return toNumber(value);
+}
+
 function normalizeCsvRows(type, rows) {
   if (type === "users") {
     return rows.map((row, index) => ({
@@ -150,6 +199,7 @@ function normalizeCsvRows(type, rows) {
       email: pick(row, ["email", "mail"]),
       mobile: pick(row, ["mobile", "phone", "phone_number"]),
       role: pick(row, ["role", "user_role"], "Admin"),
+      password: pick(row, ["password", "pwd"], "1234"),
       status: String(pick(row, ["status"], "active")).toLowerCase(),
     }));
   }
@@ -174,18 +224,44 @@ function normalizeCsvRows(type, rows) {
       worker_desig: pick(row, ["worker_desig", "designation", "category"]),
       worker_skill: pick(row, ["worker_skill", "skill", "category"]),
       worker_gender: pick(row, ["worker_gender", "gender"]),
+      daily_wage: pickNumber(row, RATE_KEYS),
     }));
+  }
+
+  if (type === "wages") {
+    return rows.map((row) => {
+      const presentDays = pickNumber(row, PRESENT_KEYS);
+      const dailyWage = pickNumber(row, RATE_KEYS);
+      const uploadedExpense = pickNumber(row, EXPENSE_KEYS);
+
+      return {
+        worker_id: pick(row, ["worker_id", "adhar_id", "aadhaar_id", "aadhar_id"], ""),
+        worker_name: pick(row, ["worker_name", "name"], ""),
+        job_cd: pick(row, ["job_cd", "job_code", "contractor_id", "contract_id"]),
+        contractor_name: pick(row, ["contractor_name", "contractor"], "-"),
+        wage_month: pick(row, ["wage_month", "muster_month", "month", "period", "date"]),
+        present: presentDays,
+        worker_count: pickNumber(row, ["worker_count", "workers", "total_workers", "no_of_workers", "number_of_workers"]),
+        daily_wage: dailyWage,
+        wage_expense: uploadedExpense || presentDays * dailyWage,
+      };
+    });
   }
 
   return rows.map((row) => ({
     worker_name: pick(row, ["worker_name", "name"]),
+    worker_id: pick(row, ["worker_id", "adhar_id", "aadhaar_id", "aadhar_id"], ""),
     job_cd: pick(row, ["job_cd", "job_code", "contractor_id"]),
+    contractor_name: pick(row, ["contractor_name", "contractor"], "-"),
     muster_month: pick(row, ["muster_month", "month", "date"]),
-    present: Number(pick(row, ["present", "p"], 0)),
-    absent: Number(pick(row, ["absent", "a"], 0)),
-    weekly_off: Number(pick(row, ["weekly_off", "wo"], 0)),
-    holidays: Number(pick(row, ["holidays", "h"], 0)),
-    leaves: Number(pick(row, ["leaves", "l"], 0)),
+    present: pickNumber(row, PRESENT_KEYS),
+    worker_count: pickNumber(row, ["worker_count", "workers", "total_workers", "no_of_workers", "number_of_workers"]),
+    daily_wage: pickNumber(row, RATE_KEYS),
+    wage_expense: pickNumber(row, EXPENSE_KEYS),
+    absent: pickNumber(row, ["absent", "a"]),
+    weekly_off: pickNumber(row, ["weekly_off", "wo"]),
+    holidays: pickNumber(row, ["holidays", "h"]),
+    leaves: pickNumber(row, ["leaves", "l"]),
   }));
 }
 
@@ -193,6 +269,10 @@ function detectTableType(rows, fileName = "") {
   const keys = new Set(Object.keys(rows[0] || {}));
   const has = (...names) => names.some((name) => keys.has(normalizeKey(name)));
   const lowerName = fileName.toLowerCase();
+
+  if (has(...EXPENSE_KEYS, ...RATE_KEYS, "days_present", "present_days", "wage_month") || lowerName.includes("wage") || lowerName.includes("payroll")) {
+    return "wages";
+  }
 
   if (has("present", "absent", "weekly_off", "muster_month") || lowerName.includes("muster") || lowerName.includes("attendance")) {
     return "muster";
@@ -226,6 +306,9 @@ function applyUploadedStats() {
   document.getElementById("totalContracts").textContent = contracts.length;
   document.getElementById("totalWorkers").textContent = workers.length;
   document.getElementById("totalMuster").textContent = muster.length;
+  const uploadedWageRows = wageExpenses.length ? wageExpenses : readUploadedTable("wages");
+  const uploadedWageTotal = uploadedWageRows.reduce((sum, row) => sum + Number(row.wage_expense || 0), 0);
+  if (uploadedWageTotal) document.getElementById("totalWage").textContent = formatMoney(uploadedWageTotal);
 }
 
 function setupDropZone(zone, onFiles) {
@@ -243,6 +326,215 @@ function setupDropZone(zone, onFiles) {
     zone.classList.remove("drag-over");
     onFiles(Array.from(event.dataTransfer.files || []));
   });
+}
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+}
+
+function readEngineerSummaries() {
+  try {
+    return JSON.parse(localStorage.getItem(ENGINEER_SUMMARY_KEY) || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeEngineerSummaries(summaries) {
+  localStorage.setItem(ENGINEER_SUMMARY_KEY, JSON.stringify(summaries));
+}
+
+function readLocalWageSubmissions() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_WAGE_KEY) || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+function reviewBadge(status) {
+  const normalized = String(status || "").toLowerCase();
+  const cls = normalized.includes("approved") ? "active-badge" : normalized.includes("rejected") ? "inactive-badge" : "pending-badge";
+  return `<span class="badge ${cls}">${esc(status || "Pending")}</span>`;
+}
+
+function renderSummaryReviews() {
+  if (!summaryReviewBody) return;
+
+  const summaries = readEngineerSummaries();
+  if (!summaries.length) {
+    summaryReviewBody.innerHTML = `<tr><td colspan="7">No engineer summaries submitted yet.</td></tr>`;
+    return;
+  }
+
+  summaryReviewBody.innerHTML = summaries.map((summary) => `
+    <tr>
+      <td>${esc(summary.engineerName || "Engineer In-Charge")}</td>
+      <td>${esc(summary.period || "-")}</td>
+      <td>${Number(summary.totals?.contractors || 0)}</td>
+      <td>${Number(summary.totals?.workers || 0)}</td>
+      <td>${formatMoney(summary.totals?.wageCost || 0)}</td>
+      <td>${reviewBadge(summary.status)}</td>
+      <td><button type="button" data-summary-review="${esc(summary.id)}">View Details</button></td>
+    </tr>
+  `).join("");
+}
+
+function buildAdminAlerts() {
+  const summaryAlerts = readEngineerSummaries().map((summary) => {
+    const approved = /approved/i.test(summary.status || "");
+    return {
+      title: approved ? "Engineer summary approved" : "Engineer summary submitted",
+      text: `${summary.engineerName || "Engineer In-Charge"} - ${summary.period || "Current period"} - ${summary.status || "Submitted to Admin"}`,
+      time: summary.reviewedAt || summary.submittedAt,
+      tone: approved ? "good" : "warn",
+      action: approved ? "" : summary.id
+    };
+  });
+
+  const wageAlerts = readLocalWageSubmissions()
+    .filter((submission) => !/approved by engineer|rejected by engineer/i.test(submission.status || ""))
+    .map((submission) => ({
+      title: "Contractor wage sheet pending engineer review",
+      text: `${submission.contractor || "Contractor"} submitted ${submission.month || "current period"} wage sheet.`,
+      time: submission.submittedAt,
+      tone: "warn",
+      action: ""
+    }));
+
+  const documentAlerts = uploadedDocuments.slice(-5).map((file) => ({
+    title: "Document uploaded",
+    text: `${file.name} linked to ${file.linkedTo || "Documents"}.`,
+    time: file.uploadedAt,
+    tone: "info",
+    action: ""
+  }));
+
+  return [...summaryAlerts, ...wageAlerts, ...documentAlerts].sort((a, b) => {
+    const aTime = new Date(a.time || 0).getTime();
+    const bTime = new Date(b.time || 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+function renderAdminAlerts() {
+  if (!adminAlertList) return;
+
+  const alerts = buildAdminAlerts();
+  if (!alerts.length) {
+    adminAlertList.innerHTML = `
+      <div class="alert-item">
+        <strong>No notifications</strong>
+        <span>Engineer summary submissions and workflow alerts will appear here.</span>
+      </div>
+    `;
+    return;
+  }
+
+  adminAlertList.innerHTML = alerts.map((alert) => `
+    <div class="alert-item ${alert.tone}">
+      <div>
+        <strong>${esc(alert.title)}</strong>
+        <span>${esc(alert.text)}</span>
+        <small>${alert.time ? esc(new Date(alert.time).toLocaleString("en-IN")) : "Just now"}</small>
+      </div>
+      ${alert.action ? `<button type="button" data-summary-review="${esc(alert.action)}">View Details</button>` : ""}
+    </div>
+  `).join("");
+}
+
+function detailRows(items) {
+  return items.map(([label, value]) => `
+    <div class="review-row">
+      <span>${esc(label)}</span>
+      <strong>${esc(value)}</strong>
+    </div>
+  `).join("");
+}
+
+function wageSheetRows(rows) {
+  if (!rows.length) return `<p class="upload-hint">No wage sheet details available.</p>`;
+
+  return `
+    <table>
+      <thead>
+        <tr><th>Contractor</th><th>Month</th><th>Workers</th><th>Amount</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map((row) => `
+          <tr>
+            <td>${esc(row.contractor || row.contractorName || "-")}</td>
+            <td>${esc(row.month || row.period || "-")}</td>
+            <td>${Number(row.workers || 0)}</td>
+            <td>${formatMoney(row.amount || row.net || row.gross || 0)}</td>
+            <td>${reviewBadge(row.status || "Submitted")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function openSummaryReview(summaryId) {
+  const summary = readEngineerSummaries().find((item) => item.id === summaryId);
+  if (!summary) return;
+
+  const contractorWageSheets = summary.contractorWageSheets?.length ? summary.contractorWageSheets : readLocalWageSubmissions();
+  activeSummaryReviewId = summaryId;
+  summaryReviewTitle.textContent = `${summary.engineerName || "Engineer In-Charge"} Summary`;
+  summaryReviewMeta.textContent = `${summary.period || "-"} | Submitted ${summary.submittedAt ? new Date(summary.submittedAt).toLocaleString("en-IN") : "-"}`;
+  adminSummaryNote.value = summary.adminNote || "";
+  summaryReviewDetails.innerHTML = `
+    <div class="review-grid">
+      <section class="review-card">
+        <h4>Operational Summary</h4>
+        <p class="upload-hint">${esc(summary.operationalSummary || "-")}</p>
+        ${detailRows([
+          ["Contractors", summary.totals?.contractors || 0],
+          ["Workers", summary.totals?.workers || 0],
+          ["Pending Wage Sheets", summary.totals?.pendingWageSheets || 0],
+          ["Status", summary.status || "Submitted to Admin"],
+        ])}
+      </section>
+      <section class="review-card">
+        <h4>Financial Summary</h4>
+        <p class="upload-hint">${esc(summary.financialSummary || "-")}</p>
+        ${detailRows([
+          ["Total Wage Cost", formatMoney(summary.totals?.wageCost || 0)],
+          ["Contractor Wage Sheets", contractorWageSheets.length],
+          ["Engineer Wage Sheets", summary.engineerWageSheets?.length || 0],
+          ["Reviewed At", summary.reviewedAt ? new Date(summary.reviewedAt).toLocaleString("en-IN") : "Pending"],
+        ])}
+      </section>
+      <section class="review-card full">
+        <h4>Contractor Wage Sheets</h4>
+        ${wageSheetRows(contractorWageSheets)}
+      </section>
+      <section class="review-card full">
+        <h4>Engineer In-Charge Wage Sheet Snapshot</h4>
+        ${wageSheetRows(summary.engineerWageSheets || [])}
+      </section>
+    </div>
+  `;
+  summaryReviewDialog.showModal();
+}
+
+function approveSummaryReview(event) {
+  event.preventDefault();
+  const summaries = readEngineerSummaries();
+  const index = summaries.findIndex((summary) => summary.id === activeSummaryReviewId);
+  if (index < 0) return;
+
+  summaries[index] = {
+    ...summaries[index],
+    status: "Approved by Admin",
+    adminNote: adminSummaryNote.value.trim() || "Summary approved. Wage-sheet details reviewed and accepted.",
+    reviewedAt: new Date().toISOString()
+  };
+  writeEngineerSummaries(summaries);
+  renderSummaryReviews();
+  renderAdminAlerts();
+  summaryReviewDialog.close();
 }
 
 async function handleCsvUpload(event) {
@@ -267,6 +559,7 @@ async function handleCsvFiles(files) {
     importedText ? `Imported ${importedText}.` : "",
     rejectedText ? `Skipped ${rejectedText}.` : "",
   ].filter(Boolean).join(" ");
+  renderAdminAlerts();
 }
 
 async function importDataFile(file, preferredType = "auto") {
@@ -284,16 +577,19 @@ async function importDataFile(file, preferredType = "auto") {
       : parseExcel(await file.arrayBuffer());
     const type = preferredType === "auto" ? detectTableType(parsed, file.name) : preferredType;
     const rows = normalizeCsvRows(type, parsed);
+    const syncedRows = await syncImportedRows(type, rows);
 
     if (type === "users") {
-      users = [...users, ...rows];
+      users = [...users, ...syncedRows];
       renderUsers(users);
     } else if (type === "contracts") {
-      contracts = [...contracts, ...rows];
+      contracts = [...contracts, ...syncedRows];
       renderContracts();
     } else if (type === "workers") {
-      workers = [...workers, ...rows];
+      workers = [...workers, ...syncedRows];
       renderWorkers();
+    } else if (type === "wages") {
+      wageExpenses = [...wageExpenses, ...rows];
     } else {
       muster = [...muster, ...rows];
       renderMuster();
@@ -308,10 +604,29 @@ async function importDataFile(file, preferredType = "auto") {
   }
 }
 
+async function syncImportedRows(type, rows) {
+  const importPath = {
+    users: "users",
+    contracts: "contracts",
+    workers: "workers",
+  }[type];
+
+  if (!importPath) return rows;
+
+  const data = await fetchJson(`${API_BASE}/admin/import/${importPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rows }),
+  });
+
+  return data[type] || rows;
+}
+
 function getTableRows(type) {
   if (type === "users") return users;
   if (type === "contracts") return contracts;
   if (type === "workers") return workers;
+  if (type === "wages") return wageExpenses;
   return muster;
 }
 
@@ -342,6 +657,7 @@ async function handleDocumentFiles(files) {
 
   localStorage.setItem("adminUploadedDocuments", JSON.stringify(uploadedDocuments));
   renderDocuments();
+  renderAdminAlerts();
   if (imported.length) {
     csvUploadStatus.textContent = `Auto imported ${imported.map((item) => `${item.count} ${item.type} row(s) from ${item.name}`).join("; ")}.`;
   }
@@ -368,7 +684,7 @@ function formatFileSize(bytes) {
 }
 
 function clearUploadedData() {
-  ["users", "contracts", "workers", "muster"].forEach((type) => {
+  ["users", "contracts", "workers", "muster", "wages"].forEach((type) => {
     localStorage.removeItem(`adminUploaded_${type}`);
   });
   localStorage.removeItem("adminUploadedDocuments");
@@ -376,9 +692,11 @@ function clearUploadedData() {
   contracts = [];
   workers = [];
   muster = [];
+  wageExpenses = [];
   uploadedDocuments = [];
   csvUploadStatus.textContent = "Uploaded data cleared.";
   renderDocuments();
+  renderAdminAlerts();
   loadSafely(loadStats, "Stats");
   loadSafely(loadUsers, "Users");
   loadSafely(loadContracts, "Contracts");
@@ -393,21 +711,148 @@ async function loadExpenseReport() {
     return;
   }
 
+  if (hasUploadedExpenseData()) {
+    const report = buildUploadedExpenseReport(month);
+    renderExpenseTable(report.jobs, report.total_expense);
+    return;
+  }
+
   try {
     const data = await fetchJson(`${API_BASE}/admin/wage-expenses?month=${month}`);
     renderExpenseTable(data.jobs || [], data.total_expense || 0);
   } catch (err) {
     console.error(err);
-    expenseBody.innerHTML = `<tr><td colspan="5">${err.message || "Error loading expense report"}</td></tr>`;
-    totalExpense.textContent = "₹0";
-    alert(`Error loading expense report: ${err.message || "Please make sure the backend server is running."}`);
+    expenseBody.innerHTML = `<tr><td colspan="5">No uploaded wage data found for this month. Upload wage, muster, and worker files, or start the backend server on port 3000.</td></tr>`;
+    totalExpense.textContent = formatMoney(0);
   }
+}
+
+function hasUploadedExpenseData() {
+  return readUploadedTable("wages").length > 0 || readUploadedTable("muster").length > 0;
+}
+
+function buildUploadedExpenseReport(month) {
+  const uploadedWorkers = workers.length ? workers : readUploadedTable("workers");
+  const uploadedMuster = muster.length ? muster : readUploadedTable("muster");
+  const uploadedWages = wageExpenses.length ? wageExpenses : readUploadedTable("wages");
+  const uploadedContracts = contracts.length ? contracts : readUploadedTable("contracts");
+  const workerById = new Map();
+  const contractByJob = new Map();
+  const groups = new Map();
+
+  uploadedWorkers.forEach((worker) => {
+    const id = normalizeLookupValue(worker.adhar_id || worker.worker_id || worker.id);
+    if (id) workerById.set(id, worker);
+    const name = normalizeLookupValue(worker.worker_name || worker.name);
+    if (name) workerById.set(name, worker);
+  });
+
+  uploadedContracts.forEach((contract) => {
+    const jobCode = normalizeLookupValue(contract.job_cd || contract.contractor_id);
+    if (jobCode) contractByJob.set(jobCode, contract);
+  });
+
+  uploadedWages
+    .filter((entry) => isSameExpenseMonth(entry.wage_month || entry.muster_month || entry.month || entry.date, month))
+    .forEach((entry) => {
+      addExpenseGroup(groups, contractByJob, {
+        job_cd: entry.job_cd,
+        contractor_name: entry.contractor_name,
+        worker_id: entry.worker_id || entry.worker_name,
+        present: entry.present,
+        worker_count: entry.worker_count,
+        daily_wage: entry.daily_wage,
+        wage_expense: entry.wage_expense,
+      });
+    });
+
+  uploadedMuster
+    .filter((entry) => isSameExpenseMonth(entry.muster_month, month))
+    .forEach((entry) => {
+      const worker = workerById.get(normalizeLookupValue(entry.adhar_id || entry.worker_id || entry.worker_name)) || {};
+      const jobCode = entry.job_cd || worker.job_cd || "-";
+      const presentDays = toNumber(entry.present || entry.days_present);
+      const dailyWage = toNumber(worker.daily_wage || worker.wage_rate || entry.daily_wage || entry.wage_rate);
+      addExpenseGroup(groups, contractByJob, {
+        job_cd: jobCode,
+        contractor_name: entry.contractor_name,
+        worker_id: entry.adhar_id || entry.worker_id || worker.adhar_id || worker.worker_name || entry.worker_name,
+        present: presentDays,
+        worker_count: entry.worker_count,
+        daily_wage: dailyWage,
+        wage_expense: toNumber(entry.wage_expense) || presentDays * dailyWage,
+      });
+    });
+
+  const jobs = Array.from(groups.values()).map((group) => ({
+    job_cd: group.job_cd,
+    contractor_name: group.contractor_name,
+    worker_count: group.workerIds.size || group.explicitWorkerCount || "-",
+    total_present_days: group.total_present_days,
+    wage_expense: group.wage_expense,
+  }));
+
+  return {
+    jobs,
+    total_expense: jobs.reduce((sum, job) => sum + Number(job.wage_expense || 0), 0),
+  };
+}
+
+function addExpenseGroup(groups, contractByJob, entry) {
+  const jobCode = entry.job_cd || "-";
+  const contract = contractByJob.get(normalizeLookupValue(jobCode)) || {};
+  const key = jobCode || "-";
+  const group = groups.get(key) || {
+    job_cd: key,
+    contractor_name: entry.contractor_name || contract.contractor_name || contract.name || "-",
+    workerIds: new Set(),
+    explicitWorkerCount: 0,
+    total_present_days: 0,
+    wage_expense: 0,
+  };
+  const workerId = normalizeLookupValue(entry.worker_id);
+  const workerCount = toNumber(entry.worker_count);
+  const presentDays = toNumber(entry.present);
+  const wageExpense = toNumber(entry.wage_expense) || presentDays * toNumber(entry.daily_wage);
+
+  if (workerId) group.workerIds.add(workerId);
+  group.explicitWorkerCount += workerCount;
+  group.total_present_days += presentDays;
+  group.wage_expense += wageExpense;
+  groups.set(key, group);
+}
+
+function normalizeLookupValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isSameExpenseMonth(value, selectedMonth) {
+  if (!value) return false;
+  const raw = String(value).trim();
+  const selected = String(selectedMonth).trim();
+  const [year, month] = selected.split("-");
+  const monthNumber = Number(month);
+  const monthDate = new Date(Number(year), monthNumber - 1, 1);
+  const monthNames = [
+    monthDate.toLocaleString("en-US", { month: "long" }).toLowerCase(),
+    monthDate.toLocaleString("en-US", { month: "short" }).toLowerCase(),
+  ];
+  const normalized = raw.toLowerCase();
+
+  if (normalized === selected) return true;
+  if (normalized === month || normalized === String(monthNumber)) return true;
+  if (monthNames.includes(normalized)) return true;
+
+  const parsed = new Date(raw);
+  return !Number.isNaN(parsed.getTime())
+    && parsed.getFullYear() === Number(year)
+    && parsed.getMonth() + 1 === monthNumber;
 }
 
 function renderExpenseTable(jobs, total) {
   if (!jobs.length) {
     expenseBody.innerHTML = `<tr><td colspan="5">No data found.</td></tr>`;
-    totalExpense.textContent = "₹0";
+    totalExpense.textContent = formatMoney(0);
     return;
   }
 
@@ -417,11 +862,15 @@ function renderExpenseTable(jobs, total) {
       <td>${job.contractor_name}</td>
       <td>${job.worker_count}</td>
       <td>${job.total_present_days}</td>
-      <td>₹${Number(job.wage_expense).toLocaleString("en-IN")}</td>
+      <td>${formatMoney(job.wage_expense)}</td>
     </tr>
   `).join("");
 
-  totalExpense.textContent = `₹${Number(total).toLocaleString("en-IN")}`;
+  totalExpense.textContent = formatMoney(total);
+}
+
+function formatMoney(value) {
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
 function showSection(id, btn) {
@@ -448,7 +897,7 @@ async function loadStats() {
   document.getElementById("totalContracts").textContent = data.total_contracts;
   document.getElementById("totalWorkers").textContent = data.total_workers;
   document.getElementById("totalMuster").textContent = data.total_muster;
-  document.getElementById("totalWage").textContent = `₹${Number(data.total_wage).toLocaleString("en-IN")}`;
+  document.getElementById("totalWage").textContent = formatMoney(data.total_wage);
 }
 
 async function loadUsers() {
@@ -578,7 +1027,7 @@ function renderMuster() {
 }
 
 function hasUploadedData() {
-  return ["users", "contracts", "workers", "muster"].some((type) => readUploadedTable(type).length);
+  return ["users", "contracts", "workers", "muster", "wages"].some((type) => readUploadedTable(type).length);
 }
 
 async function loadRates() {
@@ -627,3 +1076,5 @@ loadSafely(loadWorkers, "Workers");
 loadSafely(loadMuster, "Muster");
 loadSafely(loadRates, "Rates");
 renderDocuments();
+renderSummaryReviews();
+renderAdminAlerts();

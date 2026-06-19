@@ -302,6 +302,56 @@
             <button data-message="Contractor performance report generated.">Contractor Performance Report</button>
             <button data-message="Monthly summary report generated.">Monthly Summary Report</button>
           </div>
+          <div class="report-summary-grid" aria-label="Reports summary">
+            <article class="report-summary-card">
+              <span>Total Contractors</span>
+              <strong id="reportTotalContractors">0</strong>
+            </article>
+            <article class="report-summary-card">
+              <span>Total Workers</span>
+              <strong id="reportTotalWorkers">0</strong>
+            </article>
+            <article class="report-summary-card">
+              <span>Total Wage Cost</span>
+              <strong id="reportTotalWageCost">₹0</strong>
+            </article>
+            <article class="report-summary-card">
+              <span>Pending Wage Sheets</span>
+              <strong id="reportPendingWageSheets">0</strong>
+            </article>
+          </div>
+          <div class="report-detail-summary" aria-label="Detailed reports summary">
+            <article class="report-detail-card">
+              <h4>Operational Summary</h4>
+              <div id="operationalSummaryRows"></div>
+            </article>
+            <article class="report-detail-card">
+              <h4>Verification Summary</h4>
+              <div id="verificationSummaryRows"></div>
+            </article>
+            <article class="report-detail-card">
+              <h4>Financial Summary</h4>
+              <div id="financialSummaryRows"></div>
+            </article>
+          </div>
+          <form class="summary-submit-panel" id="engineerSummaryForm">
+            <div>
+              <h4>Submit Summary To Admin</h4>
+              <p>Send the operational and financial summary with the current wage review details.</p>
+            </div>
+            <label>
+              Operational Summary
+              <textarea id="operationalSummaryInput" rows="4" placeholder="Enter operational summary for admin review"></textarea>
+            </label>
+            <label>
+              Financial Summary
+              <textarea id="financialSummaryInput" rows="4" placeholder="Enter financial summary for admin review"></textarea>
+            </label>
+            <div class="summary-submit-actions">
+              <span id="summarySubmitStatus">No summary submitted yet.</span>
+              <button type="submit" class="primary-action">Submit To Admin</button>
+            </div>
+          </form>
         </section>
       </section>
 
@@ -329,6 +379,28 @@
       <div class="dialog-actions">
         <button value="cancel" class="secondary-action">Cancel</button>
         <button value="submit" class="primary-action" id="saveRemarksBtn">Save Remarks</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="wage-review-dialog" id="wageReviewDialog">
+    <form method="dialog">
+      <div class="review-head">
+        <div>
+          <h3 id="wageReviewTitle">Wage Sheet Review</h3>
+          <p id="wageReviewMeta">Detailed contractor wage sheet submitted for Engineer-In-Charge review.</p>
+        </div>
+        <button value="close" class="secondary-action">Close</button>
+      </div>
+      <div id="wageReviewBody" class="wage-review-body"></div>
+      <label class="review-remarks">
+        Engineer Remarks
+        <textarea id="wageReviewRemarks" rows="4" placeholder="Enter approval or rejection remarks..."></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary-action">Cancel</button>
+        <button value="reject" class="secondary-action danger" id="rejectWageReviewBtn">Reject</button>
+        <button value="approve" class="primary-action" id="approveWageReviewBtn">Approve</button>
       </div>
     </form>
   </dialog>

@@ -36,8 +36,13 @@ function handleOvClick(event) {
 }
 
 function showStep(step) {
-  document.getElementById('stepLogin').style.display = step === 'login' ? 'block' : 'none';
-  document.getElementById('stepOtp').style.display = step === 'otp' ? 'block' : 'none';
+  const loginStep = document.getElementById('stepLogin');
+  const otpStep = document.getElementById('stepOtp');
+
+  loginStep.classList.toggle('hidden', step !== 'login');
+  otpStep.classList.toggle('hidden', step !== 'otp');
+  loginStep.style.display = step === 'login' ? 'block' : 'none';
+  otpStep.style.display = step === 'otp' ? 'block' : 'none';
   document.getElementById('errBox').classList.remove('show');
   document.getElementById('errOtp').classList.remove('show');
   document.getElementById('successOtp').style.display = 'none';
@@ -62,6 +67,14 @@ function showError(elementId, message) {
   const element = document.getElementById(elementId);
   element.textContent = message;
   element.classList.add('show');
+}
+
+function showOtpTarget(value, devOtp) {
+  const target = document.getElementById('maskedValue');
+  target.textContent = maskOtpTarget(value);
+  if (devOtp) {
+    target.textContent += ` (Dev OTP: ${devOtp})`;
+  }
 }
 
 async function doLogin() {
@@ -98,11 +111,11 @@ async function doLogin() {
   try {
     const data = await apiRequest('/send-otp', {
       method: 'POST',
-      body: JSON.stringify({ type: otpMethod, value, empId, password })
+      body: JSON.stringify({ type: otpMethod, value, empId, password, role })
     });
 
     if (data.success) {
-      document.getElementById('maskedValue').textContent = maskOtpTarget(value);
+      showOtpTarget(value, data.devOtp);
       clearOtpBoxes();
       showStep('otp');
       startOtpTimer();
@@ -112,7 +125,7 @@ async function doLogin() {
       showError('errBox', data.message || 'Failed to send OTP. Try again.');
     }
   } catch (err) {
-    showError('errBox', 'Cannot connect to server. Make sure server.js is running.');
+    showError('errBox', err.message || 'Cannot connect to server. Make sure server.js is running.');
   } finally {
     button.textContent = 'Send OTP & Continue';
     button.disabled = false;
@@ -310,7 +323,7 @@ async function verifyOtp() {
       button.disabled = false;
     }
   } catch (err) {
-    showError('errOtp', 'Cannot connect to server. Make sure server.js is running.');
+    showError('errOtp', err.message || 'Cannot connect to server. Make sure server.js is running.');
     button.textContent = 'Verify OTP & Login';
     button.disabled = false;
   }
@@ -328,12 +341,14 @@ async function resendOtp() {
         type: otpMethod,
         value: otpTarget,
         empId: loginContext.empId,
-        password: loginContext.password
+        password: loginContext.password,
+        role: loginContext.role
       })
     });
 
     if (data.success) {
       document.getElementById('errOtp').classList.remove('show');
+      showOtpTarget(otpTarget, data.devOtp);
       document.getElementById('otpTimerDisplay').style.color = 'var(--blue)';
       clearOtpBoxes();
       startOtpTimer();
@@ -344,7 +359,7 @@ async function resendOtp() {
       button.disabled = false;
     }
   } catch (err) {
-    showError('errOtp', 'Server error. Make sure server.js is running.');
+    showError('errOtp', err.message || 'Server error. Make sure server.js is running.');
     button.disabled = false;
   } finally {
     button.textContent = 'Resend OTP';

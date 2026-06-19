@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supervisor Dashboard | RINL WageSheet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/supervisor.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">SV</div>
+        <div>
+          <h2>Supervisor Desk</h2>
+          <p>Workers - Attendance - Reports</p>
+        </div>
+      </div>
+
+      <section class="profile-card">
+        <div class="avatar" data-session-initials>SV</div>
+        <h3 data-session-name>Supervisor</h3>
+        <p data-session-role>Shift Supervisor</p>
+        <span class="pill">Shop Floor Control</span>
+      </section>
+
+      <p class="menu-title">SUPERVISOR WORKFLOW</p>
+      <nav class="menu" aria-label="Supervisor dashboard sections">
+        <a href="#overview" class="nav-link active" data-page="overview">Overview<small>Daily KPIs</small></a>
+        <a href="#workforce" class="nav-link" data-page="workforce">Workforce<small>Attendance and areas</small></a>
+        <a href="#overtime" class="nav-link" data-page="overtime">Overtime<small>Approve before wages</small></a>
+        <a href="#reports" class="nav-link" data-page="reports">Reports<small>Daily progress</small></a>
+        <a href="#incidents" class="nav-link" data-page="incidents">Incidents<small>Safety and shortages</small></a>
+        <a href="#notifications" class="nav-link" data-page="notifications">Notifications<small>Alerts and messages</small></a>
+      </nav>
+
+      <button class="logout-btn" data-logout>Logout</button>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1 id="pageHeading">Supervisor Dashboard</h1>
+          <p id="pageSubheading">Manage daily workforce activity before contractor and engineer review.</p>
+        </div>
+        <div class="workflow">
+          <span>Workers</span><b></b><span>Supervisor</span><b></b><span>Contractor</span><b></b><span>Engineer</span><b></b><span>Admin</span>
+        </div>
+      </header>
+
+      <section class="page active" id="page-overview">
+        <section class="cards">
+          <article class="metric"><span>Total Workers</span><strong id="totalWorkers">0</strong><p>Allocated to current shift</p></article>
+          <article class="metric green"><span>Present Today</span><strong id="presentToday">0</strong><p>Ready for assigned areas</p></article>
+          <article class="metric red"><span>Absent Today</span><strong id="absentToday">0</strong><p>Requires contractor note</p></article>
+          <article class="metric amber"><span>Overtime Workers</span><strong id="overtimeWorkers">0</strong><p>Waiting for approval</p></article>
+          <article class="metric purple"><span>Pending Issues</span><strong id="pendingIssues">0</strong><p>Safety, equipment, material</p></article>
+        </section>
+
+        <section class="grid-2">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Shift Productivity</h2>
+                <p>Completion trend for today's areas.</p>
+              </div>
+              <span class="status good" id="shiftCompletion">0% Complete</span>
+            </div>
+            <div class="progress-list">
+              <label>Blast Furnace <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
+              <label>Rolling Mill <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
+              <label>Maintenance <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
+              <label>Loading Yard <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Supervisor Responsibilities</h2>
+                <p>Daily actions before wage calculation.</p>
+              </div>
+            </div>
+            <div class="check-grid">
+              <span>Mark daily attendance</span>
+              <span>Track worker allocation</span>
+              <span>Approve overtime</span>
+              <span>Monitor productivity</span>
+              <span>Submit daily reports</span>
+              <span>Report incidents</span>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="page" id="page-workforce">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Workforce Management</h2>
+              <p>Mark attendance and assign work areas for the shift.</p>
+            </div>
+            <input class="search" id="workerSearch" placeholder="Search worker..." />
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Worker ID</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Work Area</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="workerBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Attendance Entry</h2>
+              <p>Use quick controls instead of contractor manual entry.</p>
+            </div>
+          </div>
+          <div class="attendance-options">
+            <button data-status-action="Present">Mark Attendance</button>
+            <button data-status-action="Half Day">Half Day</button>
+            <button data-status-action="Leave">Leave</button>
+            <button data-status-action="Absent">Absent</button>
+          </div>
+          <p class="hint" id="selectedWorkerHint">Select a worker row, then choose an attendance action.</p>
+        </article>
+      </section>
+
+      <section class="page" id="page-overtime">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Overtime Approval</h2>
+              <p>Approve or reject OT before wage calculation.</p>
+            </div>
+            <span class="status pending" id="pendingOtCount">0 Pending</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Worker</th><th>OT Hours</th><th>Area</th><th>Status</th><th>Decision</th></tr>
+              </thead>
+              <tbody id="overtimeBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="page" id="page-reports">
+        <section class="grid-2">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Daily Progress Report</h2>
+                <p>Submitted to Engineer In-Charge.</p>
+              </div>
+            </div>
+            <form id="reportForm" class="form-stack">
+              <label>Date<input type="date" id="reportDate" /></label>
+              <label>Workers Present<input type="number" id="reportPresent" value="0" min="0" /></label>
+              <label>Work Completed (%)<input type="number" id="reportCompleted" value="0" min="0" max="100" /></label>
+              <label>Issues<textarea id="reportIssues" rows="5"></textarea></label>
+              <button class="primary-btn" type="submit">Submit Daily Report</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Latest Report Preview</h2>
+                <p>Engineer In-Charge receives this summary.</p>
+              </div>
+            </div>
+            <div class="report-preview" id="reportPreview"></div>
+          </article>
+        </section>
+      </section>
+
+      <section class="page" id="page-incidents">
+        <section class="grid-2">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Incident Reporting</h2>
+                <p>Log safety issues, injuries, equipment breakdowns, and material shortages.</p>
+              </div>
+            </div>
+            <form id="incidentForm" class="form-stack">
+              <label>Incident Type
+                <select id="incidentType">
+                  <option>Safety Issue</option>
+                  <option>Worker Injury</option>
+                  <option>Equipment Breakdown</option>
+                  <option>Material Shortage</option>
+                </select>
+              </label>
+              <label>Work Area
+                <select id="incidentArea">
+                  <option>Blast Furnace</option>
+                  <option>Rolling Mill</option>
+                  <option>Maintenance</option>
+                  <option>Material Handling</option>
+                  <option>Loading Yard</option>
+                </select>
+              </label>
+              <label>Details<textarea id="incidentDetails" rows="4" placeholder="Describe the issue..."></textarea></label>
+              <button class="primary-btn" type="submit">Report Incident</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Open Issues</h2>
+                <p>Items pending contractor or engineer action.</p>
+              </div>
+            </div>
+            <div class="issue-list" id="issueList"></div>
+          </article>
+        </section>
+      </section>
+
+      <section class="page" id="page-notifications">
+        <section class="cards compact-cards">
+          <article class="metric"><span>Total Alerts</span><strong id="totalAlerts">0</strong><p>Active notifications</p></article>
+          <article class="metric amber"><span>Unread</span><strong id="unreadAlerts">0</strong><p>Needs supervisor review</p></article>
+          <article class="metric red"><span>Critical</span><strong id="criticalAlerts">0</strong><p>High priority items</p></article>
+        </section>
+
+        <section class="grid-2">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Notifications & Alerts</h2>
+                <p>Track workflow messages, safety alerts, and pending action items.</p>
+              </div>
+              <button class="mini-btn" id="markAlertsRead" type="button">Mark all read</button>
+            </div>
+            <div class="notification-list" id="notificationList"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Create Alert</h2>
+                <p>Send an internal reminder for follow-up action.</p>
+              </div>
+            </div>
+            <form id="alertForm" class="form-stack">
+              <label>Priority
+                <select id="alertPriority">
+                  <option>Normal</option>
+                  <option>Important</option>
+                  <option>Critical</option>
+                </select>
+              </label>
+              <label>Subject<input type="text" id="alertTitle" placeholder="Enter alert subject" /></label>
+              <label>Message<textarea id="alertMessage" rows="5" placeholder="Enter alert message"></textarea></label>
+              <button class="primary-btn" type="submit">Add Alert</button>
+            </form>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/session-routing.js"></script>
+  <script src="js/supervisor.js"></script>
+</body>
+</html>

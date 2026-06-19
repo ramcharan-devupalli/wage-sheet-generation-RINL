@@ -8,13 +8,54 @@ const overtimeItems = [];
 const complianceItems = [];
 const progressItems = [];
 const alerts = [];
+const LOCAL_WAGE_KEY = "rinl_wage_sheet_submissions";
+const ENGINEER_SUMMARY_KEY = "rinl_engineer_summary_submissions";
+const reportSummary = {
+  totalContractors: 0,
+  totalWorkers: 0,
+  totalWageCost: 0,
+  pendingWageSheets: 0,
+};
 
 if (typeof applySessionToPage === "function") applySessionToPage("engineerincharge.html");
 if (typeof bindLogoutButtons === "function") bindLogoutButtons();
 
 let activeSection = "overview";
 let activeRemarksContractor = "";
+let activeWageSubmissionId = "";
 let uploadedRows = [];
+
+function readLocalWageSubmissions() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_WAGE_KEY) || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeLocalWageSubmissions(submissions) {
+  try {
+    localStorage.setItem(LOCAL_WAGE_KEY, JSON.stringify(submissions));
+  } catch (error) {
+    showToast("Browser storage is blocked. Wage decision was not saved.");
+  }
+}
+
+function readEngineerSummaries() {
+  try {
+    return JSON.parse(localStorage.getItem(ENGINEER_SUMMARY_KEY) || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeEngineerSummaries(summaries) {
+  try {
+    localStorage.setItem(ENGINEER_SUMMARY_KEY, JSON.stringify(summaries));
+  } catch (error) {
+    showToast("Browser storage is blocked. Summary was not saved.");
+  }
+}
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
@@ -49,6 +90,143 @@ function emptyTable(colspan, message = "No data loaded. Upload a file to populat
 function addAlert(title, text, tone = "#176b87") {
   alerts.unshift({ title, text, tone });
   renderAlerts();
+}
+
+function addOrUpdateWageSheet(submission) {
+  const existing = wageSheets.find((item) => item.id === submission.id || item.contractor === submission.contractor);
+  const record = {
+    id: submission.id,
+    contractor: submission.contractor,
+    month: submission.month,
+    workers: Number(submission.workers || 0),
+    amount: Number(submission.amount || submission.net || submission.gross || 0),
+    status: submission.status || "Submitted to Engineer",
+    remarks: submission.remarks || "Pending Engineer-In-Charge review.",
+    submissionId: submission.id
+  };
+
+  if (existing) Object.assign(existing, record);
+  else wageSheets.unshift(record);
+}
+
+function syncSubmittedWageSheets() {
+  readLocalWageSubmissions().forEach((submission) => {
+    addOrUpdateWageSheet(submission);
+    if (!alerts.some((alert) => alert.wageSubmissionId === submission.id)) {
+      alerts.unshift({
+        title: "Wage sheet submitted",
+        text: `${submission.contractor} submitted ${submission.month} wage sheet for engineer review.`,
+        tone: "#b98512",
+        wageSubmissionId: submission.id,
+        contractor: submission.contractor
+      });
+    }
+  });
+}
+
+function syncAdminSummaryDecisions() {
+  readEngineerSummaries().forEach((summary) => {
+    if (!/approved/i.test(summary.status || "")) return;
+    if (alerts.some((alert) => alert.summarySubmissionId === summary.id)) return;
+
+    alerts.unshift({
+      title: "Admin summary approved",
+      text: `Admin approved ${summary.period} summary. Note: ${summary.adminNote || "No note added."}`,
+      tone: "#16835f",
+      summarySubmissionId: summary.id
+    });
+  });
+}
+
+function findSubmissionById(id) {
+  return readLocalWageSubmissions().find((submission) => submission.id === id);
+}
+
+function findSubmissionByContractor(contractorName) {
+  return readLocalWageSubmissions().find((submission) => submission.contractor === contractorName);
+}
+
+function detailRows(object, moneyKeys = []) {
+  return Object.entries(object || {}).map(([key, value]) => {
+    const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+    const display = moneyKeys.includes(key) ? formatMoney(Number(value || 0)) : value;
+    return `<div class="review-row"><span>${label}</span><b>${display ?? "-"}</b></div>`;
+  }).join("");
+}
+
+function workerDetailTable(rows = []) {
+  if (!rows.length) return emptyState("No worker wage line items were submitted.");
+  return `
+    <div class="table-wrap review-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Worker ID</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Days</th>
+            <th>OT</th>
+            <th>Gross</th>
+            <th>PF</th>
+            <th>ESI</th>
+            <th>Net</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((worker) => `
+            <tr>
+              <td>${worker.id || "-"}</td>
+              <td>${worker.name || "-"}</td>
+              <td>${worker.category || "-"}</td>
+              <td>${worker.days || 0}</td>
+              <td>${worker.overtime || 0}</td>
+              <td>${formatMoney(worker.gross || 0)}</td>
+              <td>${formatMoney(worker.pf || 0)}</td>
+              <td>${formatMoney(worker.esi || 0)}</td>
+              <td>${formatMoney(worker.net || 0)}</td>
+              <td>${badge(worker.status || "Active")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderWageReviewDetails(submission) {
+  const details = submission.details || {};
+  const summaryMoneyKeys = ["grossWage", "pfDeduction", "esiDeduction", "netPayable", "contractValue", "remainingBalance", "totalDeductions", "payrollExpense"];
+  return `
+    <div class="review-status-line">
+      ${badge(submission.status || "Submitted to Engineer")}
+      <span>Submitted: ${submission.submittedAt ? new Date(submission.submittedAt).toLocaleString("en-IN") : "-"}</span>
+      <span>Reviewed: ${submission.reviewedAt ? new Date(submission.reviewedAt).toLocaleString("en-IN") : "Pending"}</span>
+    </div>
+    <div class="review-grid">
+      <section class="review-section"><h4>Contractor Information</h4>${detailRows(details.contractorInfo)}</section>
+      <section class="review-section"><h4>Workforce Summary</h4>${detailRows(details.workforceSummary)}</section>
+      <section class="review-section"><h4>Attendance Summary</h4>${detailRows(details.attendanceSummary)}</section>
+      <section class="review-section"><h4>Wage Calculation Summary</h4>${detailRows(details.wageCalculationSummary, summaryMoneyKeys)}</section>
+      <section class="review-section"><h4>Expense Summary</h4>${detailRows(details.expenseSummary, summaryMoneyKeys)}</section>
+      <section class="review-section"><h4>Verification Section</h4>${detailRows(details.verificationSection)}</section>
+    </div>
+    <section class="review-section full"><h4>Worker Wage Line Items</h4>${workerDetailTable(details.workerRows)}</section>
+  `;
+}
+
+function openWageReview(submissionId) {
+  const submission = findSubmissionById(submissionId);
+  if (!submission) {
+    showToast("Submitted wage sheet not found.");
+    return;
+  }
+
+  activeWageSubmissionId = submissionId;
+  document.getElementById("wageReviewTitle").textContent = `${submission.contractor} Wage Sheet`;
+  document.getElementById("wageReviewMeta").textContent = `${submission.month} | ${submission.workers || 0} workers | ${formatMoney(submission.amount || submission.net || submission.gross || 0)}`;
+  document.getElementById("wageReviewBody").innerHTML = renderWageReviewDetails(submission);
+  document.getElementById("wageReviewRemarks").value = submission.remarks || "";
+  document.getElementById("wageReviewDialog").showModal();
 }
 
 function switchSection(target) {
@@ -105,9 +283,20 @@ function pick(row, keys, fallback = "") {
 
 function numeric(row, keys, fallback = 0) {
   const value = pick(row, keys, "");
-  const parsed = Number(String(value).replace(/[^0-9.-]/g, ""));
+  const parsed = Number(String(value).replace(/,/g, "").replace(/rs\.?/gi, "").replace(/[^0-9.-]/g, ""));
   return Number.isFinite(parsed) ? parsed : fallback;
 }
+
+function hasAny(row, keys) {
+  return keys.some((key) => {
+    const value = row[normalizeKey(key)];
+    return value !== undefined && value !== "";
+  });
+}
+
+const WORKER_COUNT_KEYS = ["workers", "worker_count", "total_workers", "no_of_workers", "number_of_workers", "workforce", "manpower"];
+const WAGE_AMOUNT_KEYS = ["total_wage_cost", "wage_cost", "wage_amount", "amount", "net_wage", "net", "gross_wage", "gross", "total_wage", "expense", "total_expense", "monthly_expense", "payroll"];
+const PENDING_WAGE_KEYS = ["pending_wage_sheets", "pending_wages", "pending_sheets", "pending_wage_sheet_count"];
 
 function parseCsv(text) {
   const rows = [];
@@ -161,6 +350,8 @@ function replaceArray(target, items) {
 
 function extractDashboardData(rows) {
   const contractorMap = new Map();
+  const contractorIds = new Set();
+  const workerIds = new Set();
   const categoryMap = new Map();
   const dateMap = new Map();
   const monthMap = new Map();
@@ -168,33 +359,55 @@ function extractDashboardData(rows) {
   const overtimeMap = new Map();
   const complianceMap = new Map();
   const progressMap = new Map();
+  let uploadedTotalContractors = 0;
+  let uploadedTotalWorkers = 0;
+  let uploadedTotalWageCost = 0;
+  let uploadedPendingWageSheets = 0;
 
   rows.forEach((row, index) => {
     const contractor = pick(row, ["contractor", "contractor_name", "agency", "vendor"], "Unknown Contractor");
+    const contractorId = pick(row, ["contractor_id", "contract_id", "job_cd", "job_code", "work_order"], contractor);
     const department = pick(row, ["department", "dept", "section"], "General");
     const worker = pick(row, ["worker", "worker_name", "name", "employee_name"], `Worker ${index + 1}`);
+    const workerId = pick(row, ["worker_id", "employee_id", "emp_id", "adhar_id", "aadhaar_id", "aadhar_id"], worker);
     const skill = pick(row, ["category", "skill", "worker_skill", "designation"], "Unskilled");
     const statusText = pick(row, ["status", "attendance_status", "present_absent"], "");
     const presentDays = numeric(row, ["present", "present_days", "days_present", "days", "work_days"], statusText.toLowerCase().includes("present") ? 1 : 0);
     const absentDays = numeric(row, ["absent", "absent_days"], statusText.toLowerCase().includes("absent") ? 1 : 0);
     const overtimeHours = numeric(row, ["overtime", "ot", "ot_hours", "overtime_hours"], 0);
-    const amount = numeric(row, ["net_wage", "net", "wage_amount", "amount", "gross_wage", "gross"], 0);
+    const amount = numeric(row, WAGE_AMOUNT_KEYS, 0);
+    const explicitWorkerCount = numeric(row, WORKER_COUNT_KEYS, 0);
     const dateValue = pick(row, ["date", "attendance_date", "work_date"], "");
     const month = pick(row, ["month", "wage_month", "period"], monthLabel(dateValue));
     const compliance = pick(row, ["compliance", "compliance_status", "pf_status", "esi_status"], "Pending");
     const workOrder = pick(row, ["work_order", "workorder", "package", "activity"], "");
     const progress = numeric(row, ["progress", "progress_percent", "completion"], 0);
+    const uploadedContractorCount = numeric(row, ["total_contractors", "contractor_count", "contractors"], 0);
+    const uploadedWorkerCount = numeric(row, ["total_workers"], 0);
+    const uploadedWageCost = numeric(row, ["total_wage_cost"], 0);
+    const uploadedPendingCount = numeric(row, PENDING_WAGE_KEYS, 0);
+
+    if (uploadedContractorCount) uploadedTotalContractors = uploadedContractorCount;
+    if (uploadedWorkerCount) uploadedTotalWorkers = uploadedWorkerCount;
+    if (uploadedWageCost) uploadedTotalWageCost = uploadedWageCost;
+    if (uploadedPendingCount) uploadedPendingWageSheets = uploadedPendingCount;
+    if (contractorId) contractorIds.add(String(contractorId).toLowerCase());
+    if (workerId) workerIds.add(String(workerId).toLowerCase());
 
     const contractorRecord = contractorMap.get(contractor) || {
       name: contractor,
       workers: 0,
+      explicitWorkers: 0,
+      workerIds: new Set(),
       present: 0,
       absent: 0,
       overtime: 0,
       status: "Uploaded",
       department,
     };
-    contractorRecord.workers += 1;
+    if (explicitWorkerCount) contractorRecord.explicitWorkers = Math.max(contractorRecord.explicitWorkers, explicitWorkerCount);
+    if (workerId) contractorRecord.workerIds.add(String(workerId).toLowerCase());
+    contractorRecord.workers = contractorRecord.explicitWorkers || contractorRecord.workerIds.size || contractorRecord.workers + 1;
     contractorRecord.present += presentDays > 0 ? 1 : 0;
     contractorRecord.absent += absentDays > 0 || presentDays === 0 ? 1 : 0;
     contractorRecord.overtime += overtimeHours > 0 ? 1 : 0;
@@ -213,9 +426,10 @@ function extractDashboardData(rows) {
     monthMap.set(monthKey, currentMonth);
 
     const wageRecord = wageMap.get(contractor) || { contractor, month: monthKey, workers: 0, amount: 0, status: "Uploaded" };
-    wageRecord.workers += 1;
+    wageRecord.workers = explicitWorkerCount || wageRecord.workers + 1;
     wageRecord.amount += amount;
     wageRecord.month = monthKey;
+    wageRecord.status = pick(row, ["wage_status", "wage_sheet_status", "approval_status", "status"], wageRecord.status);
     wageMap.set(contractor, wageRecord);
 
     if (overtimeHours > 0) {
@@ -239,7 +453,7 @@ function extractDashboardData(rows) {
     }
   });
 
-  replaceArray(contractors, Array.from(contractorMap.values()));
+  replaceArray(contractors, Array.from(contractorMap.values()).map(({ workerIds: _workerIds, explicitWorkers: _explicitWorkers, ...item }) => item));
   replaceArray(categoryData, Array.from(categoryMap.entries()).map(([label, value], index) => ({
     label,
     value,
@@ -273,6 +487,11 @@ function extractDashboardData(rows) {
     tone: getStatusClass(title),
   })));
   if (progressMap.size) replaceArray(progressItems, Array.from(progressMap.values()));
+
+  reportSummary.totalContractors = uploadedTotalContractors;
+  reportSummary.totalWorkers = uploadedTotalWorkers;
+  reportSummary.totalWageCost = uploadedTotalWageCost;
+  reportSummary.pendingWageSheets = uploadedPendingWageSheets;
 }
 
 async function parseUploadedFile(file) {
@@ -343,6 +562,166 @@ function renderMetrics() {
   `).join("");
 }
 
+function formatReportWageCost(value) {
+  const amount = Number(value || 0);
+  if (amount >= 100000) {
+    const lakhs = amount / 100000;
+    return `₹${Number.isInteger(lakhs) ? lakhs : lakhs.toFixed(1)} Lakhs`;
+  }
+  return formatMoney(amount);
+}
+
+function renderReportRows(targetId, rows) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  target.innerHTML = rows.map(([label, value]) => `
+    <div class="report-detail-row">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
+}
+
+function getTopExpenseCategory() {
+  if (!categoryData.length) return "Skilled Workers";
+  return categoryData.reduce((top, item) => item.value > top.value ? item : top, categoryData[0]).label;
+}
+
+function getHighestCostContractor() {
+  if (!wageSheets.length) return "ABC Contractors";
+  return wageSheets.reduce((top, item) => Number(item.amount || 0) > Number(top.amount || 0) ? item : top, wageSheets[0]).contractor;
+}
+
+function renderReportSummary() {
+  const hasReportData = contractors.length || wageSheets.length || overtimeItems.length || uploadedRows.length;
+  const totalContractors = reportSummary.totalContractors || contractors.length || 5;
+  const totalWorkers = reportSummary.totalWorkers || contractors.reduce((sum, item) => sum + item.workers, 0) || 575;
+  const totalWageCost = reportSummary.totalWageCost || wageSheets.reduce((sum, item) => sum + item.amount, 0) || 8082000;
+  const totalOtCost = overtimeItems.reduce((sum, item) => sum + Number(item.amount || 0), 0) || 425000;
+  const pendingWageSheets = reportSummary.pendingWageSheets || wageSheets.filter((item) => {
+    const status = String(item.status || "").toLowerCase();
+    return !status.includes("approved") && !status.includes("verified") && !status.includes("rejected");
+  }).length || (hasReportData ? 0 : 3);
+  const approvedWageSheets = wageSheets.filter((item) => /approved/i.test(item.status)).length || (hasReportData ? 0 : 10);
+  const rejectedWageSheets = wageSheets.filter((item) => /rejected/i.test(item.status)).length;
+  const verifiedWageSheets = wageSheets.filter((item) => /verified|approved|rejected/i.test(item.status)).length || (hasReportData ? approvedWageSheets + rejectedWageSheets : 12);
+  const reviewedContractors = contractors.filter((item) => /approved|rejected|verified|uploaded/i.test(item.status)).length || (hasReportData ? contractors.length : 5);
+  const averageWage = totalWorkers ? Math.round(totalWageCost / totalWorkers) : 0;
+  const totalOtHours = overtimeItems.reduce((sum, item) => sum + Number(item.hours || 0), 0);
+  const averageOtHours = totalWorkers && totalOtHours ? totalOtHours / totalWorkers : 1.47;
+
+  document.getElementById("reportTotalContractors").textContent = totalContractors;
+  document.getElementById("reportTotalWorkers").textContent = totalWorkers;
+  document.getElementById("reportTotalWageCost").textContent = formatReportWageCost(totalWageCost);
+  document.getElementById("reportPendingWageSheets").textContent = pendingWageSheets;
+
+  renderReportRows("operationalSummaryRows", [
+    ["Total Contractors", totalContractors],
+    ["Total Workers", totalWorkers],
+    ["Total Payroll Cost", formatReportWageCost(totalWageCost)],
+    ["Total OT Cost", formatReportWageCost(totalOtCost)],
+    ["Top Expense Category", getTopExpenseCategory()],
+    ["Highest Cost Contractor", getHighestCostContractor()],
+    ["Pending Approvals", pendingWageSheets],
+  ]);
+
+  renderReportRows("verificationSummaryRows", [
+    ["Contractors Reviewed", `${reviewedContractors}/${totalContractors}`],
+    ["Wage Sheets Verified", verifiedWageSheets],
+    ["Approved", approvedWageSheets],
+    ["Pending", pendingWageSheets],
+    ["Rejected", rejectedWageSheets],
+  ]);
+
+  renderReportRows("financialSummaryRows", [
+    ["Total Wage Expense", formatReportWageCost(totalWageCost)],
+    ["OT Expense", formatReportWageCost(totalOtCost)],
+    ["Average Wage", formatMoney(averageWage)],
+    ["Average OT Hours", `${averageOtHours.toFixed(2)} hrs/worker`],
+  ]);
+  updateSummarySubmitStatus();
+}
+
+function getEngineerName() {
+  try {
+    const session = JSON.parse(localStorage.getItem("rinlSession") || "null");
+    return session?.employee?.name || "Engineer In-Charge";
+  } catch (error) {
+    return "Engineer In-Charge";
+  }
+}
+
+function latestSummaryPeriod() {
+  const submitted = readLocalWageSubmissions()[0];
+  const wage = wageSheets[0];
+  return submitted?.month || wage?.month || new Date().toLocaleString("en-IN", { month: "long", year: "numeric" });
+}
+
+function getLatestEngineerSummary() {
+  const engineerName = getEngineerName();
+  return readEngineerSummaries().find((summary) => summary.engineerName === engineerName) || null;
+}
+
+function updateSummarySubmitStatus() {
+  const target = document.getElementById("summarySubmitStatus");
+  if (!target) return;
+
+  const summary = getLatestEngineerSummary();
+  if (!summary) {
+    target.textContent = "No summary submitted yet.";
+    return;
+  }
+
+  const submittedAt = summary.submittedAt ? new Date(summary.submittedAt).toLocaleString("en-IN") : "-";
+  target.textContent = `${summary.status || "Submitted to Admin"} on ${submittedAt}${summary.adminNote ? ` | Admin note: ${summary.adminNote}` : ""}`;
+}
+
+function buildEngineerSummaryPayload() {
+  const operationalText = document.getElementById("operationalSummaryInput").value.trim();
+  const financialText = document.getElementById("financialSummaryInput").value.trim();
+  const totalWorkers = contractors.reduce((sum, item) => sum + Number(item.workers || 0), 0);
+  const totalWageCost = reportSummary.totalWageCost || wageSheets.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const pendingWageSheets = wageSheets.filter((item) => !/approved|verified|rejected/i.test(item.status || "")).length;
+
+  return {
+    id: `${getEngineerName().replace(/[^a-z0-9]+/gi, "-")}-${Date.now()}`,
+    engineerName: getEngineerName(),
+    period: latestSummaryPeriod(),
+    operationalSummary: operationalText || `Reviewed ${contractors.length} contractor(s), ${totalWorkers} worker(s), and ${attendanceItems.length} attendance record(s). Pending wage sheets: ${pendingWageSheets}.`,
+    financialSummary: financialText || `Total wage cost is ${formatMoney(totalWageCost)} with ${wageSheets.length} wage sheet(s) under engineer review.`,
+    totals: {
+      contractors: contractors.length,
+      workers: totalWorkers,
+      wageCost: totalWageCost,
+      pendingWageSheets
+    },
+    contractorWageSheets: readLocalWageSubmissions(),
+    engineerWageSheets: wageSheets.map((item) => ({ ...item })),
+    reportSnapshot: {
+      contractors: contractors.map((item) => ({ ...item })),
+      attendance: attendanceItems.slice(0, 100).map((item) => ({ ...item })),
+      overtime: overtimeItems.map((item) => ({ ...item }))
+    },
+    status: "Submitted to Admin",
+    submittedAt: new Date().toISOString(),
+    reviewedAt: null,
+    adminNote: ""
+  };
+}
+
+function submitEngineerSummary(event) {
+  event.preventDefault();
+  const engineerName = getEngineerName();
+  const summaries = readEngineerSummaries().filter((summary) => summary.engineerName !== engineerName);
+  const payload = buildEngineerSummaryPayload();
+
+  summaries.unshift(payload);
+  writeEngineerSummaries(summaries);
+  addAlert("Summary submitted to admin", `${payload.period} operational and financial summary was sent to Admin for approval.`, "#176b87");
+  updateSummarySubmitStatus();
+  showToast("Operational and financial summary submitted to Admin.");
+}
+
 function renderContractorRows(targetId) {
   const target = document.getElementById(targetId);
   if (!target) return;
@@ -386,6 +765,11 @@ function renderAlerts() {
       <div>
         <h4>${item.title}</h4>
         <p>${item.text}</p>
+        ${item.wageSubmissionId ? `<div class="row-actions alert-actions">
+          <button class="mini-btn" data-view-wage-submission="${item.wageSubmissionId}">View Details</button>
+          <button class="mini-btn approve" data-wage-submission="${item.wageSubmissionId}" data-decision="approved">Approve</button>
+          <button class="mini-btn reject" data-wage-submission="${item.wageSubmissionId}" data-decision="rejected">Reject</button>
+        </div>` : ""}
       </div>
     </article>
   `).join("");
@@ -520,7 +904,7 @@ function renderWageRows() {
       <td>${badge(item.status)}</td>
       <td>
         <div class="row-actions">
-          ${actionButton("View", "wage-view", item.contractor)}
+          ${item.submissionId ? `<button class="mini-btn" data-view-wage-submission="${item.submissionId}">View Details</button>` : actionButton("View", "wage-view", item.contractor)}
           ${actionButton("Verify", "wage-verify", item.contractor)}
           ${actionButton("Approve", "wage-approve", item.contractor, "approve")}
           ${actionButton("Reject", "wage-reject", item.contractor, "reject")}
@@ -599,6 +983,7 @@ function renderProgress() {
 
 function rerenderTables() {
   renderMetrics();
+  renderReportSummary();
   renderContractorRows("contractorRowsFull");
   renderAttendanceRows();
   renderWageRows();
@@ -675,6 +1060,10 @@ function handleWageAction(action, contractorName) {
   }
 
   if (action === "wage-approve") {
+    if (wage.submissionId) {
+      reviewSubmittedWageSheet(wage.submissionId, "approved");
+      return;
+    }
     wage.status = "Approved";
     addAlert("Wage sheet approved", `${contractorName} wage sheet was approved for payroll processing.`, "#16835f");
     renderWageRows();
@@ -684,12 +1073,50 @@ function handleWageAction(action, contractorName) {
   }
 
   if (action === "wage-reject") {
+    if (wage.submissionId) {
+      reviewSubmittedWageSheet(wage.submissionId, "rejected");
+      return;
+    }
     wage.status = "Rejected";
     addAlert("Wage sheet rejected", `${contractorName} wage sheet was rejected with correction required.`, "#c03d3d");
     renderWageRows();
     renderMetrics();
     showToast(`${contractorName} wage sheet rejected.`);
   }
+}
+
+function reviewSubmittedWageSheet(submissionId, decision) {
+  const submissions = readLocalWageSubmissions();
+  const index = submissions.findIndex((submission) => submission.id === submissionId);
+  if (index < 0) {
+    showToast("Submitted wage sheet not found.");
+    return;
+  }
+
+  const approved = decision === "approved";
+  const dialogRemarks = document.getElementById("wageReviewRemarks")?.value.trim();
+  submissions[index] = {
+    ...submissions[index],
+    status: approved ? "Approved by Engineer" : "Rejected by Engineer",
+    remarks: dialogRemarks || (approved ? "Approved for payroll processing." : "Rejected by Engineer-In-Charge. Corrections required."),
+    reviewedAt: new Date().toISOString()
+  };
+  writeLocalWageSubmissions(submissions);
+  addOrUpdateWageSheet(submissions[index]);
+
+  const alert = alerts.find((item) => item.wageSubmissionId === submissionId);
+  if (alert) {
+    alert.title = approved ? "Wage sheet accepted" : "Wage sheet rejected";
+    alert.text = `${submissions[index].contractor} wage sheet was ${approved ? "Accepted" : "Rejected"} by Engineer-In-Charge.`;
+    alert.tone = approved ? "#16835f" : "#c03d3d";
+  }
+
+  renderAlerts();
+  renderWageRows();
+  renderMetrics();
+  renderReportSummary();
+  document.getElementById("wageReviewDialog")?.close();
+  showToast(`Wage sheet ${decision}.`);
 }
 
 function handleVerificationAction(button) {
@@ -746,6 +1173,18 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const wageViewButton = event.target.closest("[data-view-wage-submission]");
+    if (wageViewButton) {
+      openWageReview(wageViewButton.dataset.viewWageSubmission);
+      return;
+    }
+
+    const wageSubmissionButton = event.target.closest("[data-wage-submission]");
+    if (wageSubmissionButton) {
+      reviewSubmittedWageSheet(wageSubmissionButton.dataset.wageSubmission, wageSubmissionButton.dataset.decision);
+      return;
+    }
+
     const actionButtonNode = event.target.closest("[data-action]");
     if (actionButtonNode) {
       const { action, contractor } = actionButtonNode.dataset;
@@ -800,6 +1239,16 @@ function bindEvents() {
     document.getElementById("remarksText").value = "";
   });
 
+  document.getElementById("approveWageReviewBtn").addEventListener("click", (event) => {
+    event.preventDefault();
+    if (activeWageSubmissionId) reviewSubmittedWageSheet(activeWageSubmissionId, "approved");
+  });
+
+  document.getElementById("rejectWageReviewBtn").addEventListener("click", (event) => {
+    event.preventDefault();
+    if (activeWageSubmissionId) reviewSubmittedWageSheet(activeWageSubmissionId, "rejected");
+  });
+
   ["contractorFilter", "dateFilter", "departmentFilter"].forEach((id) => {
     document.getElementById(id).addEventListener("change", renderAttendanceRows);
   });
@@ -816,15 +1265,26 @@ function bindEvents() {
     event.target.value = "";
   });
 
+  document.getElementById("engineerSummaryForm").addEventListener("submit", submitEngineerSummary);
+
   document.getElementById("refreshBtn").addEventListener("click", () => {
     renderDashboard();
     switchSection(activeSection);
     showToast("Dashboard refreshed.");
   });
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === LOCAL_WAGE_KEY || event.key === ENGINEER_SUMMARY_KEY) renderDashboard();
+  });
+
+  window.addEventListener("focus", renderDashboard);
 }
 
 function renderDashboard() {
+  syncSubmittedWageSheets();
+  syncAdminSummaryDecisions();
   renderMetrics();
+  renderReportSummary();
   renderContractorRows("contractorRowsFull");
   renderAlerts();
   renderCategoryChart();

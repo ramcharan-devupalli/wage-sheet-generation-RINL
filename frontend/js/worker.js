@@ -4,11 +4,22 @@
       ? "http://localhost:3000"
       : "";
 
-    if (typeof applySessionToPage === "function") applySessionToPage("worker.html");
+    const savedSession = typeof applySessionToPage === "function"
+      ? applySessionToPage("worker.html")
+      : (typeof currentSession === "function" ? currentSession() : null);
     if (typeof bindLogoutButtons === "function") bindLogoutButtons();
 
     let workerData = null;
     let attendanceChart = null;
+    const LOCAL_LEAVE_KEY = "rinl_worker_leave_requests";
+
+    function sessionHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "x-employee-id": savedSession?.employee?.empId || "",
+        "x-worker-id": savedSession?.employee?.empId || ""
+      };
+    }
 
     function formatMoney(value) {
       return new Intl.NumberFormat("en-IN", {
@@ -62,6 +73,87 @@
       toast.textContent = message;
       toast.classList.add("show");
       setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    function readLocalLeaveRequests() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCAL_LEAVE_KEY) || "[]");
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function writeLocalLeaveRequests(requests) {
+      try {
+        localStorage.setItem(LOCAL_LEAVE_KEY, JSON.stringify(requests));
+      } catch (error) {
+        throw new Error("Backend is offline and browser storage is blocked.");
+      }
+    }
+
+    function saveLocalLeaveRequest(fromDate, toDate, reason, applyTo) {
+      const workerId = workerData?.workerId || workerData?.worker_id || workerData?.loginId || workerData?.login_id || "LOCAL-WORKER";
+      const workerName = workerData?.name || workerData?.full_name || "Worker";
+      const requests = readLocalLeaveRequests().filter((request) => request.workerId !== workerId);
+      const request = {
+        id: `${workerId}-${Date.now()}`,
+        workerId,
+        workerName,
+        category: workerData?.skill || workerData?.skill_code || "-",
+        contractorId: workerData?.jobCode || workerData?.job_code || "-",
+        fromDate,
+        toDate,
+        reason,
+        applyTo: applyTo || "Contractor",
+        status: `Applied from ${fromDate} to ${toDate}`,
+        approval: "Pending",
+        notification: "Leave request sent to contractor and pending review.",
+        requestedDays: Math.max(1, Math.floor((new Date(toDate) - new Date(fromDate)) / 86400000) + 1),
+        submittedAt: new Date().toISOString(),
+        reviewedAt: null
+      };
+
+      requests.unshift(request);
+      writeLocalLeaveRequests(requests);
+      return request;
+    }
+
+    function getLocalLeaveForWorker(data) {
+      const workerId = data?.workerId || data?.worker_id || data?.loginId || data?.login_id;
+      if (!workerId) return null;
+      return readLocalLeaveRequests().find((request) => request.workerId === workerId) || null;
+    }
+
+    function applyLocalLeaveToWorkerData() {
+      if (!workerData) return;
+      const leave = getLocalLeaveForWorker(workerData);
+      if (!leave) return;
+      workerData.leaveStatus = leave.approval === "Approved"
+        ? "Leave Approved"
+        : leave.approval === "Rejected"
+        ? "Leave Rejected"
+        : leave.status;
+      workerData.leaveApprovalStatus = leave.approval;
+      workerData.appliedTo = leave.applyTo;
+      workerData.notification = leave.notification;
+      workerData.leaveUsed = leave.approval === "Approved" ? leave.requestedDays : 0;
+      workerData.leavePendingCount = leave.approval === "Pending" ? 1 : 0;
+      workerData.leaveBalance = 12 - Number(workerData.leaveUsed || 0);
+    }
+
+    function syncLocalLeaveDecision(showUpdate = false) {
+      if (!workerData) return;
+      const beforeApproval = workerData.leaveApprovalStatus || workerData.leave_approval_status;
+      const beforeNotification = workerData.notification;
+      applyLocalLeaveToWorkerData();
+
+      const changed = beforeApproval !== workerData.leaveApprovalStatus || beforeNotification !== workerData.notification;
+      if (changed) {
+        renderWorkerData();
+        if (showUpdate && workerData.leaveApprovalStatus !== "Pending") {
+          showToast(workerData.leaveStatus);
+        }
+      }
     }
 
     function openLeaveModal() {
@@ -300,21 +392,22 @@
       renderAttendanceChart(document.querySelector('input[name="chartType"]:checked')?.value || "bar");
     }
 
-    async function fetchWorkerDashboard() {
+    async function fetchWorkerDashboard(silent = false) {
       try {
+        const previousApproval = workerData?.leaveApprovalStatus || workerData?.leave_approval_status;
         const response = await fetch(`${WORKER_API_BASE}/api/worker/me`, {
           method: "GET",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json"
-          }
+          headers: sessionHeaders()
         });
 
         if (response.status === 401) {
-          showToast("Session expired. Please login again.");
-          setTimeout(() => {
-            window.location.href = "index.html";
-          }, 1200);
+          if (!silent) {
+            showToast("Session expired. Please login again.");
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 1200);
+          }
           return;
         }
 
@@ -330,10 +423,14 @@
         }
 
         workerData = data;
+        applyLocalLeaveToWorkerData();
         renderWorkerData();
+        if (silent && previousApproval && previousApproval !== workerData.leaveApprovalStatus && workerData.leaveApprovalStatus !== "Pending") {
+          showToast(workerData.leaveStatus || `Leave ${workerData.leaveApprovalStatus}`);
+        }
       } catch (error) {
         console.error(error);
-        showToast("Unable to load worker data");
+        if (!silent) showToast("Unable to load worker data");
       }
     }
 
@@ -357,9 +454,7 @@
         const response = await fetch(`${WORKER_API_BASE}/api/worker/leave`, {
           method: "POST",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: sessionHeaders(),
           body: JSON.stringify({
             fromDate: from,
             toDate: to,
@@ -383,6 +478,28 @@
         await fetchWorkerDashboard();
       } catch (error) {
         console.error(error);
+        if (error instanceof TypeError) {
+          const leave = saveLocalLeaveRequest(from, to, reason, applyTo);
+          workerData = {
+            ...(workerData || {}),
+            workerId: leave.workerId,
+            name: leave.workerName,
+            leaveStatus: leave.status,
+            leaveApprovalStatus: leave.approval,
+            appliedTo: leave.applyTo,
+            notification: leave.notification,
+            leaveUsed: 0,
+            leavePendingCount: 1,
+            leaveBalance: 12
+          };
+          closeLeaveModal();
+          document.getElementById("leaveFrom").value = "";
+          document.getElementById("leaveTo").value = "";
+          document.getElementById("leaveReason").value = "";
+          renderWorkerData();
+          showToast("Backend offline. Leave saved for contractor review locally.");
+          return;
+        }
         showToast(error.message || "Failed to submit leave");
       }
     }
@@ -505,6 +622,14 @@
       window.addEventListener("click", (e) => {
         if (e.target.id === "leaveModal") closeLeaveModal();
       });
+
+      window.addEventListener("storage", (event) => {
+        if (event.key === LOCAL_LEAVE_KEY) syncLocalLeaveDecision(true);
+      });
+
+      window.addEventListener("focus", () => syncLocalLeaveDecision(true));
+      setInterval(() => syncLocalLeaveDecision(false), 3000);
+      setInterval(() => fetchWorkerDashboard(true), 10000);
     }
 
     setupActions();

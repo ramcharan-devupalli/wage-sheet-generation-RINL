@@ -12,6 +12,27 @@ async function queryOne(sql, params = []) {
   return result.rows[0] || null;
 }
 
+function normalizeRole(role) {
+  return String(role || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function rolesMatch(left, right) {
+  const a = normalizeRole(left);
+  const b = normalizeRole(right);
+  if (!a || !b) return true;
+  if (a === b) return true;
+  const workerRoles = ['worker', 'workers', 'skilled worker', 'skilled labor', 'semi skilled worker', 'semi skilled labor', 'unskilled worker', 'unskilled labor'];
+  if (workerRoles.includes(a) && workerRoles.includes(b)) return true;
+  if (['contractor', 'contractor representative'].includes(a) && ['contractor', 'contractor representative'].includes(b)) return true;
+  if (['engineer', 'engineer incharge', 'engineer in charge'].includes(a) && ['engineer', 'engineer incharge', 'engineer in charge'].includes(b)) return true;
+  if (['admin', 'hr admin', 'hr / admin'].includes(a) && ['admin', 'hr admin', 'hr / admin'].includes(b)) return true;
+  return false;
+}
+
 function otpSuccessResponse(message, otp) {
   const response = { success: true, message };
   if (process.env.NODE_ENV !== 'production') response.devOtp = otp;
@@ -20,7 +41,7 @@ function otpSuccessResponse(message, otp) {
 
 async function sendOtp(req, res, next) {
   try {
-    const { type, value, empId, password } = req.body;
+    const { type, value, empId, password, role } = req.body;
     if (!type || !value) {
       return res.status(400).json({ success: false, message: 'Type and value required.' });
     }
@@ -28,7 +49,9 @@ async function sendOtp(req, res, next) {
     if (empId || password) {
       const emp = await queryOne('SELECT * FROM employees WHERE emp_id = $1', [empId]);
       if (!emp) return res.status(400).json({ success: false, message: 'Employee ID not found.' });
+      if (String(emp.status || 'active').toLowerCase() !== 'active') return res.status(403).json({ success: false, message: 'This user is not active. Contact admin.' });
       if (emp.password !== password) return res.status(400).json({ success: false, message: 'Incorrect password.' });
+      if (!rolesMatch(role, emp.role)) return res.status(403).json({ success: false, message: 'Selected role does not match admin uploaded user role.' });
       if (type === 'phone' && emp.mobile && emp.mobile !== value) return res.status(400).json({ success: false, message: 'Mobile number does not match this employee.' });
       if (type === 'email' && emp.email && emp.email !== value) return res.status(400).json({ success: false, message: 'Email does not match this employee.' });
     }
@@ -94,7 +117,9 @@ async function verifyOtp(req, res, next) {
     if (!verified) return res.status(400).json({ success: false, message: 'Invalid OTP. Try again.' });
 
     const emp = empId ? await queryOne('SELECT * FROM employees WHERE emp_id = $1', [empId]) : null;
-    const loginRole = role || (emp ? emp.role : 'User');
+    if (emp && String(emp.status || 'active').toLowerCase() !== 'active') return res.status(403).json({ success: false, message: 'This user is not active. Contact admin.' });
+    if (emp && !rolesMatch(role, emp.role)) return res.status(403).json({ success: false, message: 'Selected role does not match admin uploaded user role.' });
+    const loginRole = emp ? emp.role : (role || 'User');
     const loginName = emp ? emp.name : empId || value;
     const loginEmpId = empId || value;
 

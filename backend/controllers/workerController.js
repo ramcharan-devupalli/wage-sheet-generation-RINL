@@ -1,6 +1,5 @@
 const pool = require("../config/dbConfig");
-
-const leaveRequests = new Map();
+const { getLeaveRequest, saveLeaveRequest } = require("../services/leaveRequestStore");
 
 function getSkillLabel(skill) {
   const labels = {
@@ -41,11 +40,6 @@ function buildAttendanceTrend(rows) {
   return weeks.map((value, index) => ({ label: `Week ${index + 1}`, value }));
 }
 
-async function getFallbackWorkerId() {
-  const result = await pool.query("SELECT worker_id FROM workers ORDER BY created_at DESC LIMIT 1");
-  return result.rows[0]?.worker_id || null;
-}
-
 async function resolveWorkerId(req) {
   return (
     req.query.workerId ||
@@ -53,7 +47,7 @@ async function resolveWorkerId(req) {
     req.body?.workerId ||
     req.body?.worker_id ||
     req.headers["x-worker-id"] ||
-    (await getFallbackWorkerId())
+    req.headers["x-employee-id"]
   );
 }
 
@@ -163,7 +157,7 @@ const getCurrentWorker = async (req, res, next) => {
     const pfAmount = grossWage * 0.05;
     const insuranceAmount = grossWage * 0.02;
     const netWage = grossWage - pfAmount - insuranceAmount;
-    const leave = leaveRequests.get(worker.worker_id) || {};
+    const leave = getLeaveRequest(worker.worker_id) || {};
 
     res.json({
       loginId: worker.worker_id,
@@ -186,7 +180,7 @@ const getCurrentWorker = async (req, res, next) => {
       appliedTo: leave.applyTo || "-",
       notification: leave.notification || "No notifications",
       leaveUsed: leave.used || 0,
-      leavePendingCount: leave.status ? 1 : 0,
+      leavePendingCount: leave.approval === "Pending" ? 1 : 0,
       leaveBalance: 12 - Number(leave.used || 0),
     });
   } catch (err) {
@@ -207,15 +201,26 @@ const submitLeave = async (req, res, next) => {
       return res.status(400).json({ message: "From date, to date, and reason are required" });
     }
 
-    leaveRequests.set(workerId, {
-      status: `Applied from ${fromDate} to ${toDate}`,
-      approval: "Pending",
-      applyTo: applyTo || "Engineer-In-Charge",
-      notification: "Leave request submitted and pending approval.",
-      used: 0,
+    const workerResult = await pool.query(
+      `SELECT worker_id, name, category, contractor_id
+       FROM workers
+       WHERE worker_id = $1
+       LIMIT 1`,
+      [workerId]
+    );
+
+    if (!workerResult.rows.length) {
+      return res.status(404).json({ message: "Worker not found" });
+    }
+
+    saveLeaveRequest(workerResult.rows[0], {
+      fromDate,
+      toDate,
+      reason,
+      applyTo: applyTo || "Contractor",
     });
 
-    res.status(201).json({ message: "Leave request submitted" });
+    res.status(201).json({ message: "Leave request sent to contractor" });
   } catch (err) {
     next(err);
   }

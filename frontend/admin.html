@@ -12,19 +12,21 @@
       <div class="brand-icon">WS</div>
       <div>
         <h2>Admin WageSheet</h2>
-        <p>Contract · Workforce · Payroll</p>
+        <p>Contract - Workforce - Payroll</p>
       </div>
     </div>
 
     <p class="side-label">ADMIN SIDEBAR</p>
 
     <button class="nav-btn active" data-section="dashboard">Dashboard <span>Home KPIs</span></button>
-    <button class="nav-btn" data-section="users">User Management <span>Users · Roles · Status</span></button>
-    <button class="nav-btn" data-section="contracts">Contract Management <span>Contracts · Work Orders</span></button>
-    <button class="nav-btn" data-section="workers">Worker Management <span>Workers · Skills</span></button>
+    <button class="nav-btn" data-section="users">User Management <span>Users - Roles - Status</span></button>
+    <button class="nav-btn" data-section="contracts">Contract Management <span>Contracts - Work Orders</span></button>
+    <button class="nav-btn" data-section="workers">Worker Management <span>Workers - Skills</span></button>
     <button class="nav-btn" data-section="muster">Monthly Muster <span>Attendance Summary</span></button>
     <button class="nav-btn" data-section="wages">Wage Expenses <span>Payroll Analytics</span></button>
-    <button class="nav-btn" data-section="uploads">Uploads <span>CSV · Documents</span></button>
+    <button class="nav-btn" data-section="summaryReviews">Summary Reviews <span>EIC Approval Notes</span></button>
+    <button class="nav-btn" data-section="notifications">Notifications <span>Alerts & Updates</span></button>
+    <button class="nav-btn" data-section="uploads">Uploads <span>CSV - Documents</span></button>
     <button class="nav-btn" data-section="settings">Settings <span>Wage Rates</span></button>
     <button class="nav-btn" data-section="profile">Profile <span>Admin Account</span></button>
 
@@ -46,7 +48,7 @@
         <div class="kpi teal"><span>Total Contracts</span><h2 id="totalContracts">0</h2><p>Work orders/contracts</p></div>
         <div class="kpi orange"><span>Total Workers</span><h2 id="totalWorkers">0</h2><p>Workers in system</p></div>
         <div class="kpi pink"><span>Muster Entries</span><h2 id="totalMuster">0</h2><p>Monthly attendance records</p></div>
-        <div class="kpi purple"><span>Total Wage</span><h2 id="totalWage">₹0</h2><p>Calculated payroll amount</p></div>
+        <div class="kpi purple"><span>Total Wage</span><h2 id="totalWage">Rs0</h2><p>Calculated payroll amount</p></div>
       </div>
 
       <div class="panel-grid">
@@ -66,6 +68,7 @@
             <button data-section="contracts">View Contracts</button>
             <button data-section="workers">View Workers</button>
             <button data-section="wages">Wage Expense</button>
+            <button data-section="notifications">View Alerts</button>
           </div>
         </div>
       </div>
@@ -158,7 +161,37 @@
           </tbody>
         </table>
         <div style="margin-top:20px;font-size:22px;font-weight:700;color:#0f4c97;">
-          Total Monthly Expense: <span id="totalExpense">₹0</span>
+          Total Monthly Expense: <span id="totalExpense">Rs0</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="summaryReviews" class="section">
+      <div class="panel">
+        <h3>Engineer Summary Reviews</h3>
+        <p class="upload-hint">Review operational and financial summaries submitted by Engineer In-Charge. View details includes contractor wage sheets and the engineer summary snapshot.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Engineer</th><th>Period</th><th>Contractors</th><th>Workers</th><th>Wage Cost</th><th>Status</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="summaryReviewBody">
+            <tr><td colspan="7">No engineer summaries submitted yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="notifications" class="section">
+      <div class="panel">
+        <h3>Notifications & Alerts</h3>
+        <p class="upload-hint">Admin alerts for engineer summaries, wage-sheet submissions, uploaded documents, and approval notes.</p>
+        <div class="alert-list" id="adminAlertList">
+          <div class="alert-item">
+            <strong>No notifications</strong>
+            <span>Engineer summary submissions and workflow alerts will appear here.</span>
+          </div>
         </div>
       </div>
     </section>
@@ -174,6 +207,7 @@
             <option value="contracts">Contracts</option>
             <option value="workers">Workers</option>
             <option value="muster">Monthly Muster</option>
+            <option value="wages">Wage Expenses</option>
           </select>
           <label class="drop-zone" id="csvDropZone" for="csvUpload">
             <strong>Drop CSV/XLS/XLSX here</strong>
@@ -221,6 +255,27 @@
       </div>
     </section>
   </main>
+
+  <dialog class="review-dialog" id="summaryReviewDialog">
+    <form method="dialog">
+      <div class="review-dialog-head">
+        <div>
+          <h3 id="summaryReviewTitle">Engineer Summary Review</h3>
+          <p id="summaryReviewMeta">Review submitted operational and financial summary.</p>
+        </div>
+        <button value="close">Close</button>
+      </div>
+      <div class="review-dialog-body" id="summaryReviewDetails"></div>
+      <label class="admin-note-label">
+        Note To Engineer In-Charge
+        <textarea id="adminSummaryNote" rows="4" placeholder="Write approval note for Engineer In-Charge"></textarea>
+      </label>
+      <div class="review-dialog-actions">
+        <button value="cancel">Cancel</button>
+        <button value="approve" id="approveSummaryBtn" class="approve-btn">Approve & Send Note</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="js/api.js"></script>
   <script src="js/session-routing.js"></script>

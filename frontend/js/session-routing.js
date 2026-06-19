@@ -2,7 +2,8 @@ const ROLE_DESTINATIONS = [
   { page: 'admin.html', match: ['admin', 'hr / admin', 'hr', 'administrator'] },
   { page: 'engineerincharge.html', match: ['engineer incharge', 'engineer-incharge', 'engineer', 'incharge'] },
   { page: 'contractor.html', match: ['contractor', 'contractor representative'] },
-  { page: 'worker.html', match: ['worker', 'workers', 'supervisor', 'skilled worker', 'skilled labor', 'semi-skilled worker', 'semi-skilled labor', 'unskilled worker', 'unskilled labor'] }
+  { page: 'supervisor.html', match: ['supervisor', 'shift supervisor'] },
+  { page: 'worker.html', match: ['worker', 'workers', 'skilled worker', 'skilled labor', 'semi-skilled worker', 'semi-skilled labor', 'unskilled worker', 'unskilled labor'] }
 ];
 
 function normalizeRole(role) {
@@ -29,11 +30,13 @@ function currentSession() {
 function applySessionToPage(expectedPage) {
   const session = currentSession();
   if (!session) {
+    if (expectedPage) window.location.href = 'index.html';
     return null;
   }
 
   const destination = roleDestination(session.employee?.role);
   if (expectedPage && destination !== expectedPage) {
+    window.location.href = destination;
     return session;
   }
 

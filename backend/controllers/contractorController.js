@@ -1,4 +1,5 @@
 const pool = require("../config/dbConfig");
+const { getLeaveRequests, reviewLeaveRequest } = require("../services/leaveRequestStore");
 
 const sampleEngineer = {
   name: "Er. S. Prakash",
@@ -32,7 +33,31 @@ function normalizeWorker(row) {
   };
 }
 
-async function getWorkers() {
+function normalizeLeaveRequest(request) {
+  return {
+    id: request.id,
+    workerId: request.workerId,
+    workerName: request.workerName,
+    category: request.category,
+    contractorId: request.contractorId,
+    fromDate: request.fromDate,
+    toDate: request.toDate,
+    reason: request.reason,
+    applyTo: request.applyTo,
+    status: request.status,
+    approval: request.approval,
+    notification: request.notification,
+    requestedDays: request.requestedDays,
+    submittedAt: request.submittedAt,
+    reviewedAt: request.reviewedAt,
+  };
+}
+
+async function getWorkers(contractorId = "") {
+  const params = [];
+  const filter = contractorId ? "WHERE w.contractor_id = $1" : "";
+  if (contractorId) params.push(contractorId);
+
   const result = await pool.query(`
     SELECT
       w.worker_id,
@@ -48,15 +73,18 @@ async function getWorkers() {
       ROUND((COALESCE(MAX(w.daily_wage), 0) * COALESCE(SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END), 0)) * 0.8725, 2) AS net
     FROM workers w
     LEFT JOIN attendance a ON a.worker_id = w.worker_id
+    ${filter}
     GROUP BY w.worker_id, w.name, w.category, w.contractor_id, w.status
-    ORDER BY w.created_at DESC
-  `);
+    ORDER BY MAX(w.created_at) DESC
+  `, params);
   return result.rows.map(normalizeWorker);
 }
 
 const getDashboard = async (req, res, next) => {
   try {
-    const workers = await getWorkers();
+    const contractorId = String(req.headers["x-employee-id"] || req.query.contractorId || "").trim();
+    const workers = await getWorkers(contractorId);
+    const workerIds = workers.map((worker) => worker.id);
     const attendanceResult = await pool.query(`
       SELECT
         a.worker_id AS "workerId",
@@ -67,9 +95,10 @@ const getDashboard = async (req, res, next) => {
         CASE WHEN a.status = 'present' THEN 8 ELSE 0 END AS hours
       FROM attendance a
       LEFT JOIN workers w ON w.worker_id = a.worker_id
+      WHERE ($1::text[] IS NULL OR a.worker_id = ANY($1::text[]))
       ORDER BY a.date DESC, a.created_at DESC
       LIMIT 100
-    `);
+    `, [workerIds.length ? workerIds : null]);
     const wageResult = await pool.query(`
       SELECT
         CONCAT('WS-', UPPER(month), '-', year) AS id,
@@ -80,10 +109,32 @@ const getDashboard = async (req, res, next) => {
         'Generated' AS status,
         'Ready for Engineer-In-Charge verification.' AS remarks
       FROM wage_sheets
+      WHERE ($1::text IS NULL OR contractor_id = $1)
       GROUP BY month, year
       ORDER BY year DESC, month DESC
       LIMIT 12
-    `);
+    `, [contractorId || null]);
+
+    const contractResult = contractorId
+      ? await pool.query(
+          `SELECT
+             contractor_id AS number,
+             created_at::date AS start,
+             NULL::date AS end,
+             0 AS value,
+             0 AS balance,
+             COALESCE(company, '-') AS scope
+           FROM contractors
+           WHERE contractor_id = $1
+           LIMIT 1`,
+          [contractorId]
+        )
+      : { rows: [] };
+
+    const leaveRequests = getLeaveRequests().map(normalizeLeaveRequest);
+    const scopedLeaveRequests = contractorId
+      ? leaveRequests.filter((request) => request.contractorId === contractorId)
+      : leaveRequests;
 
     res.json({
       workers,
@@ -91,11 +142,48 @@ const getDashboard = async (req, res, next) => {
       overtime: [],
       wageSheets: wageResult.rows,
       engineer: sampleEngineer,
-      contract: sampleContract,
+      contract: contractResult.rows[0] || sampleContract,
       notifications: [
+        ...scopedLeaveRequests.map((request) => ({
+          type: request.approval === "Pending" ? "warn" : request.approval === "Approved" ? "good" : "high",
+          title: `${request.workerName} leave request`,
+          text: `${request.fromDate} to ${request.toDate}. Status: ${request.approval}.`,
+          leaveRequestId: request.id,
+          workerId: request.workerId,
+        })),
         { type: "good", title: "Wage sheet approved", text: "Approved wage sheets are available for download." },
         { type: "warn", title: "Pending verifications", text: `${sampleEngineer.pending_verifications} items are pending with Engineer-In-Charge.` },
       ],
+      leaveRequests: scopedLeaveRequests,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getLeaveRequestsForReview = async (req, res, next) => {
+  try {
+    res.json({ leaveRequests: getLeaveRequests().map(normalizeLeaveRequest) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const reviewLeave = async (req, res, next) => {
+  try {
+    const { workerId } = req.params;
+    const decision = String(req.body.decision || "").toLowerCase();
+
+    if (!["approved", "rejected"].includes(decision)) {
+      return res.status(400).json({ message: "Decision must be approved or rejected" });
+    }
+
+    const leaveRequest = reviewLeaveRequest(workerId, decision);
+    if (!leaveRequest) return res.status(404).json({ message: "Leave request not found" });
+
+    res.json({
+      message: `Leave request ${decision}`,
+      leaveRequest: normalizeLeaveRequest(leaveRequest),
     });
   } catch (err) {
     next(err);
@@ -164,7 +252,8 @@ const saveAttendance = async (req, res, next) => {
 const generateWageSheet = async (req, res, next) => {
   try {
     const { month = "June", year = 2026 } = req.body;
-    const workers = await getWorkers();
+    const contractorId = String(req.headers["x-employee-id"] || "").trim();
+    const workers = await getWorkers(contractorId);
     const rows = workers.map((worker) => ({
       worker_id: worker.id,
       contractor_id: worker.department,
@@ -199,4 +288,6 @@ module.exports = {
   updateWorkerStatus,
   saveAttendance,
   generateWageSheet,
+  getLeaveRequestsForReview,
+  reviewLeave,
 };

@@ -10,6 +10,7 @@ const contractRoutes = require('./routes/contractRoutes');
 const workerRoutes = require('./routes/workerRoutes');
 const musterRoutes = require('./routes/musterRoutes');
 const contractorRouter = require('./routes/contractorRouter');
+const chatbotRoutes = require('./routes/chatbotRoutes');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -38,6 +39,10 @@ app.get('/contractor', (req, res) => {
   res.sendFile(path.join(frontendPath, 'contractor.html'));
 });
 
+app.get('/supervisor', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'supervisor.html'));
+});
+
 app.get('/workers', (req, res) => {
   res.sendFile(path.join(frontendPath, 'worker.html'));
 });
@@ -52,6 +57,7 @@ app.get('/dashboard', (req, res) => {
 app.use(express.static(frontendPath, { index: false }));
 
 app.use('/', authRoutes);
+app.use('/api', authRoutes);
 app.use('/', employeeRoutes);
 app.use('/', attendanceRoutes);
 app.use('/', wageRoutes);
@@ -62,6 +68,7 @@ app.use('/api/worker', workerRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/muster', musterRoutes);
 app.use('/api/contractor', contractorRouter);
+app.use('/api/chatbot', chatbotRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ success: true, message: 'RINL Wage Portal API is running.' });

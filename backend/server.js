@@ -1,7 +1,6 @@
-require('dotenv').config();
-
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const db = require('./config/dbConfig');
 const app = require('./app');
 
@@ -17,11 +16,14 @@ async function initializeDatabase() {
 
   await db.query(`
     INSERT INTO employees (emp_id, name, role, mobile, email, password) VALUES
-      ('RINL-SUP-001', 'Rajesh Kumar', 'Supervisor', '9346431127', 'rajesh@vizagsteel.com', '1234'),
-      ('RINL-HR-001', 'Priya Sharma', 'HR / Admin', '9876543210', 'priya@vizagsteel.com', '1234'),
-      ('RINL-SKL-001', 'Venkat Rao', 'Skilled Worker', '9123456789', 'venkat@vizagsteel.com', '1234'),
-      ('RINL-CON-001', 'Sravani Devi', 'Contractor Representative', '9346431127', 'sravani@vizagsteel.com', '1234')
+      ('RINL-HR-001', 'Priya Sharma', 'Admin', '9876543210', 'priya@vizagsteel.com', '1234')
     ON CONFLICT (emp_id) DO NOTHING
+  `);
+
+  await db.query(`
+    UPDATE employees
+    SET status = 'inactive'
+    WHERE emp_id IN ('RINL-SUP-001', 'RINL-SKL-001', 'RINL-CON-001')
   `);
 }
 

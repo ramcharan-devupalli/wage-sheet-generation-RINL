@@ -1,4 +1,4 @@
-﻿
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --blue: #003f8a; --blue2: #0057b8; --blue-light: #e8f0fb;
@@ -201,7 +201,7 @@
     .about {
   padding: 5rem 2rem;
 
-  background-image: url('.jpg');
+  background-image: linear-gradient(rgba(247,249,252,0.90), rgba(247,249,252,0.92)), url('../assets/tower.jpg');
 
   background-size: cover;
 
@@ -246,6 +246,35 @@
     .cta-inner { max-width: 600px; margin: 0 auto; }
     .cta .section-title { color: var(--blue); margin-bottom: 1rem; }
     .cta-desc { font-size: 14px; color: var(--muted); margin-bottom: 2rem; }
+
+    /* ── Contact Us / Team Section ── */
+    .team-section { padding: 5rem 2rem; background: var(--bg); position: relative; border-top: 1px solid var(--border); }
+    .team-inner { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+    .team-header { text-align: center; margin-bottom: 3rem; }
+    .team-header .section-tag { background: var(--red); color: #fff; }
+    .team-header .section-title { color: var(--blue); font-size: 36px; }
+    .team-header .section-desc { color: var(--muted); max-width: 600px; margin: 0 auto; }
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; }
+    .team-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 2rem 1.5rem; text-align: center; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    .team-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.1); }
+    .team-avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 1.2rem; display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; color: var(--blue); background: var(--blue-light); border: none; transition: transform 0.2s ease; }
+    .team-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .team-card:hover .team-avatar { transform: scale(1.05); }
+    .team-name { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--blue); margin-bottom: 4px; letter-spacing: 0.5px; }
+    .team-role { font-size: 12px; color: var(--red); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 1rem; }
+    .team-detail { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 6px; justify-content: center; line-height: 1.5; }
+    .team-detail-icon { font-size: 14px; flex-shrink: 0; opacity: 0.7; }
+    .team-detail a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .team-detail a:hover { color: var(--blue); }
+    @media (max-width: 900px) {
+      .team-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+      .team-section { padding: 3rem 1rem; }
+    }
+    @media (max-width: 560px) {
+      .team-grid { grid-template-columns: 1fr; }
+      .team-card { padding: 1.5rem 1rem; }
+    }
+
     footer { background: var(--blue); color: rgba(255,255,255,0.7); }
     .footer-top { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem; display: flex; gap: 3rem; justify-content: space-between; flex-wrap: wrap; }
     .footer-brand .rinl-name { color: #fff; font-size: 20px; }
@@ -311,4 +340,7 @@
     .method-tab { flex: 1; padding: 9px 12px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; font-family: "Noto Sans", sans-serif; color: var(--muted); cursor: pointer; transition: all 0.2s; font-weight: 500; }
     .method-tab.active { background: var(--blue-light); border-color: var(--blue); color: var(--blue); font-weight: 600; }
     .method-tab:hover:not(.active) { border-color: #aac4f0; color: var(--blue); }
+    .hidden { display: none !important; }
+    .text-red { color: var(--red) !important; }
+    .text-blue { color: var(--blue) !important; }
   
