@@ -66,7 +66,7 @@ const getAdminStats = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, name, email, mobile, role, emp_id AS employee_id, status, created_at
+      SELECT id, COALESCE(rinl_id, emp_id) AS rinl_id, name, email, mobile, role, emp_id AS employee_id, status, created_at
       FROM employees
       WHERE NOT (
         LOWER(COALESCE(role, '')) IN ('engineer', 'engineer incharge', 'engineer in charge')
@@ -92,6 +92,7 @@ const getEngineers = async (req, res) => {
         email,
         mobile,
         'Engineer Incharge' AS role,
+        COALESCE(rinl_id, emp_id) AS rinl_id,
         emp_id AS employee_id,
         status,
         created_at
@@ -130,16 +131,17 @@ const createEngineer = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO employees (emp_id, name, role, mobile, email, password, status)
-       VALUES ($1, $2, 'Engineer Incharge', $3, $4, $5, $6)
+      `INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password, status)
+       VALUES ($1, $1, $2, 'Engineer Incharge', $3, $4, $5, $6)
        ON CONFLICT (emp_id) DO UPDATE SET
+         rinl_id = EXCLUDED.rinl_id,
          name = EXCLUDED.name,
          role = EXCLUDED.role,
          mobile = EXCLUDED.mobile,
          email = EXCLUDED.email,
          password = EXCLUDED.password,
          status = EXCLUDED.status
-       RETURNING id, name, email, mobile, role, emp_id AS employee_id, status, created_at`,
+       RETURNING id, COALESCE(rinl_id, emp_id) AS rinl_id, name, email, mobile, role, emp_id AS employee_id, status, created_at`,
       [
         empId,
         engineerName,
@@ -184,7 +186,7 @@ const updateUserStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const result = await pool.query(
-      "UPDATE employees SET status = $1 WHERE id = $2 RETURNING id, name, email, mobile, role, emp_id AS employee_id, status, created_at",
+      "UPDATE employees SET status = $1 WHERE id = $2 RETURNING id, COALESCE(rinl_id, emp_id) AS rinl_id, name, email, mobile, role, emp_id AS employee_id, status, created_at",
       [status, id]
     );
     res.json({ message: "User status updated", user: result.rows[0] });
@@ -296,16 +298,17 @@ const importUsers = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO employees (emp_id, name, role, mobile, email, password, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password, status)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (emp_id) DO UPDATE SET
+           rinl_id = EXCLUDED.rinl_id,
            name = EXCLUDED.name,
            role = EXCLUDED.role,
            mobile = EXCLUDED.mobile,
            email = EXCLUDED.email,
            password = EXCLUDED.password,
            status = EXCLUDED.status
-         RETURNING id, name, email, mobile, role, emp_id AS employee_id, status, created_at`,
+         RETURNING id, COALESCE(rinl_id, emp_id) AS rinl_id, name, email, mobile, role, emp_id AS employee_id, status, created_at`,
         [empId, name, role, mobile, email, password, status]
       );
       imported.push(result.rows[0]);
@@ -338,13 +341,14 @@ const importContracts = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO contractors (contractor_id, name, mobile, company)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO contractors (rinl_id, contractor_id, name, mobile, company)
+         VALUES ($1, $1, $2, $3, $4)
          ON CONFLICT (contractor_id) DO UPDATE SET
+           rinl_id = EXCLUDED.rinl_id,
            name = EXCLUDED.name,
            mobile = EXCLUDED.mobile,
            company = EXCLUDED.company
-         RETURNING contractor_id AS job_cd, name AS contractor_name, mobile AS contractor_phone, company AS work_area, '-' AS dept_cd, created_at AS job_start_dt, NULL AS job_end_dt`,
+         RETURNING COALESCE(rinl_id, contractor_id) AS rinl_id, contractor_id AS job_cd, name AS contractor_name, mobile AS contractor_phone, company AS work_area, '-' AS dept_cd, created_at AS job_start_dt, NULL AS job_end_dt`,
         [contractorId, name, mobile, company]
       );
       imported.push(result.rows[0]);
@@ -379,16 +383,17 @@ const importWorkers = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO workers (worker_id, name, category, contractor_id, mobile, daily_wage, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'active')
+        `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, mobile, daily_wage, status)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, 'active')
          ON CONFLICT (worker_id) DO UPDATE SET
+           rinl_id = EXCLUDED.rinl_id,
            name = EXCLUDED.name,
            category = EXCLUDED.category,
            contractor_id = EXCLUDED.contractor_id,
            mobile = EXCLUDED.mobile,
            daily_wage = EXCLUDED.daily_wage,
            status = 'active'
-         RETURNING worker_id AS adhar_id, name AS worker_name, contractor_id AS job_cd, category AS worker_skill, category AS worker_desig, mobile, daily_wage`,
+         RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id AS adhar_id, name AS worker_name, contractor_id AS job_cd, category AS worker_skill, category AS worker_desig, mobile, daily_wage`,
         [workerId, name, category, contractorId, mobile, dailyWage]
       );
       imported.push(result.rows[0]);

@@ -12,6 +12,7 @@ const workerDashboardRoutes = require('./routes/workerDashboardRoutes');
 const musterRoutes = require('./routes/musterRoutes');
 const contractorRouter = require('./routes/contractorRouter');
 const supervisorRoutes = require('./routes/supervisorRoutes');
+const rbacDashboardRoutes = require('./routes/rbacDashboardRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
@@ -72,6 +73,7 @@ app.use('/api/worker-dashboard', workerDashboardRoutes);
 app.use('/api/muster', musterRoutes);
 app.use('/api/contractor', contractorRouter);
 app.use('/api/supervisor', supervisorRoutes);
+app.use('/api/rbac', rbacDashboardRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 
 app.get('/health', (req, res) => {

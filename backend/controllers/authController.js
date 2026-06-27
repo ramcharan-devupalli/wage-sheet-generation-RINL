@@ -75,6 +75,7 @@ function otpStoreKey(type, value) {
 function mapEmployeeLogin(row) {
   if (!row) return null;
   return {
+    rinl_id: row.rinl_id || row.emp_id,
     emp_id: row.emp_id,
     name: row.name,
     role: row.role,
@@ -89,6 +90,7 @@ function mapEmployeeLogin(row) {
 function mapContractorLogin(row) {
   if (!row) return null;
   return {
+    rinl_id: row.rinl_id || row.contractor_id,
     emp_id: row.contractor_id,
     name: row.name,
     role: 'Contractor',
@@ -103,6 +105,7 @@ function mapContractorLogin(row) {
 function mapWorkerLogin(row, selectedRole) {
   if (!row) return null;
   return {
+    rinl_id: row.rinl_id || row.worker_id,
     emp_id: row.worker_id,
     name: row.name,
     role: selectedRole || row.category || 'Workers',
@@ -118,22 +121,22 @@ async function getLoginUser(empId, role) {
   if (!empId) return null;
 
   if (isContractorRole(role)) {
-    const contractor = await queryOne('SELECT * FROM contractors WHERE LOWER(contractor_id) = LOWER($1)', [empId]);
+    const contractor = await queryOne('SELECT * FROM contractors WHERE LOWER(COALESCE(rinl_id, contractor_id)) = LOWER($1) OR LOWER(contractor_id) = LOWER($1)', [empId]);
     if (contractor) return mapContractorLogin(contractor);
-    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(emp_id) = LOWER($1)', [empId]));
+    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
   }
 
   if (isWorkerRole(role)) {
-    const worker = await queryOne('SELECT * FROM workers WHERE LOWER(worker_id) = LOWER($1)', [empId]);
+    const worker = await queryOne('SELECT * FROM workers WHERE LOWER(COALESCE(rinl_id, worker_id)) = LOWER($1) OR LOWER(worker_id) = LOWER($1)', [empId]);
     if (worker) return mapWorkerLogin(worker, role);
-    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(emp_id) = LOWER($1)', [empId]));
+    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
   }
 
   if (isAdminRole(role) || isEngineerRole(role) || isSupervisorRole(role)) {
-    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(emp_id) = LOWER($1)', [empId]));
+    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
   }
 
-  return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(emp_id) = LOWER($1)', [empId]));
+  return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
 }
 
 function notFoundMessage(role) {
@@ -165,13 +168,16 @@ function emailDeliveryErrorMessage(err) {
 }
 
 async function isExistingPortalId(empId) {
-  const existingEmployee = await queryOne('SELECT emp_id FROM employees WHERE LOWER(emp_id) = LOWER($1)', [empId]);
+  const existingEmployee = await queryOne('SELECT emp_id FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]);
   if (existingEmployee) return true;
 
-  const existingContractor = await queryOne('SELECT contractor_id FROM contractors WHERE LOWER(contractor_id) = LOWER($1)', [empId]);
+  const existingContractor = await queryOne('SELECT contractor_id FROM contractors WHERE LOWER(COALESCE(rinl_id, contractor_id)) = LOWER($1) OR LOWER(contractor_id) = LOWER($1)', [empId]);
   if (existingContractor) return true;
 
-  const existingWorker = await queryOne('SELECT worker_id FROM workers WHERE LOWER(worker_id) = LOWER($1)', [empId]);
+  const existingSupervisor = await queryOne('SELECT supervisor_id FROM supervisors WHERE LOWER(COALESCE(rinl_id, supervisor_id)) = LOWER($1) OR LOWER(supervisor_id) = LOWER($1)', [empId]);
+  if (existingSupervisor) return true;
+
+  const existingWorker = await queryOne('SELECT worker_id FROM workers WHERE LOWER(COALESCE(rinl_id, worker_id)) = LOWER($1) OR LOWER(worker_id) = LOWER($1)', [empId]);
   return Boolean(existingWorker);
 }
 
@@ -330,9 +336,9 @@ async function signup(req, res, next) {
     const generatedEmpId = await generateRinlId();
 
     const created = await queryOne(
-      `INSERT INTO employees (emp_id, name, role, mobile, email, password, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active')
-       RETURNING emp_id, name, role, mobile, email, status, created_at`,
+      `INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password, status)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, 'active')
+       RETURNING rinl_id, emp_id, name, role, mobile, email, status, created_at`,
       [generatedEmpId, cleanName, cleanRole, cleanMobile, cleanEmail || null, password]
     );
 
@@ -458,7 +464,7 @@ async function verifyOtp(req, res, next) {
     if (validationError) return res.status(validationError.includes('not active') ? 403 : 400).json({ success: false, message: validationError });
     const loginRole = loginUser ? loginUser.role : (role || 'User');
     const loginName = loginUser ? loginUser.name : empId || value;
-    const loginEmpId = loginUser ? loginUser.emp_id : (empId || value);
+    const loginEmpId = loginUser ? (loginUser.rinl_id || loginUser.emp_id) : (empId || value);
 
     const session = await queryOne(
       `INSERT INTO login_sessions (emp_id, name, role, ip_address, status)
@@ -478,6 +484,8 @@ async function verifyOtp(req, res, next) {
       message: 'Login successful.',
       sessionId: session.id,
       employee: {
+        rinlId: loginEmpId,
+        rinl_id: loginEmpId,
         empId: loginEmpId,
         name: loginName,
         role: normalizeRole(loginRole) === 'admin' ? 'admin' : loginRole

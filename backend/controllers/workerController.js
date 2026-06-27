@@ -60,6 +60,8 @@ const createWorker = async (req, res, next) => {
       name,
       job_cd,
       contractor_id,
+      supervisor_id,
+      supervisorId,
       worker_skill,
       category,
       worker_desig,
@@ -76,24 +78,28 @@ const createWorker = async (req, res, next) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO workers (worker_id, name, category, contractor_id, mobile, daily_wage)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, daily_wage)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (worker_id) DO UPDATE SET
+         rinl_id = EXCLUDED.rinl_id,
          name = EXCLUDED.name,
          category = EXCLUDED.category,
          contractor_id = EXCLUDED.contractor_id,
+         supervisor_id = EXCLUDED.supervisor_id,
          mobile = EXCLUDED.mobile,
          daily_wage = EXCLUDED.daily_wage
        RETURNING
+         COALESCE(rinl_id, worker_id) AS rinl_id,
          worker_id AS adhar_id,
          name AS worker_name,
          contractor_id AS job_cd,
+         supervisor_id,
          category AS worker_desig,
          category AS worker_skill,
          mobile,
          daily_wage,
          '-' AS worker_gender`,
-      [id, workerName, skill, job_cd || contractor_id || null, mobile || null, Number(daily_wage || 0)]
+      [id, workerName, skill, job_cd || contractor_id || null, supervisorId || supervisor_id || null, mobile || null, Number(daily_wage || 0)]
     );
 
     res.status(201).json({ message: "Worker saved successfully", worker: result.rows[0] });
@@ -106,9 +112,11 @@ const getWorkers = async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT
+        COALESCE(rinl_id, worker_id) AS rinl_id,
         worker_id AS adhar_id,
         name AS worker_name,
         contractor_id AS job_cd,
+        supervisor_id,
         category AS worker_desig,
         category AS worker_skill,
         '-' AS worker_gender
@@ -131,6 +139,8 @@ const updateWorker = async (req, res, next) => {
       name,
       job_cd,
       contractor_id,
+      supervisor_id,
+      supervisorId,
       worker_skill,
       category,
       worker_desig,
@@ -150,17 +160,21 @@ const updateWorker = async (req, res, next) => {
     const result = await pool.query(
       `UPDATE workers
        SET worker_id = $1,
+           rinl_id = $1,
            name = $2,
            contractor_id = $3,
-           category = $4,
-           mobile = $5,
-           daily_wage = $6,
-           status = $7
-       WHERE worker_id = $8
+           supervisor_id = $4,
+           category = $5,
+           mobile = $6,
+           daily_wage = $7,
+           status = $8
+       WHERE worker_id = $9
        RETURNING
+         COALESCE(rinl_id, worker_id) AS rinl_id,
          worker_id AS adhar_id,
          name AS worker_name,
          contractor_id AS job_cd,
+         supervisor_id,
          category AS worker_desig,
          category AS worker_skill,
          mobile,
@@ -170,6 +184,7 @@ const updateWorker = async (req, res, next) => {
         workerId,
         workerName,
         job_cd || contractor_id || null,
+        supervisorId || supervisor_id || null,
         skill,
         mobile || null,
         Number(daily_wage || 0),
@@ -215,7 +230,7 @@ const getCurrentWorker = async (req, res, next) => {
     }
 
     const workerResult = await pool.query(
-      `SELECT worker_id, name, category, contractor_id, mobile, daily_wage
+      `SELECT COALESCE(rinl_id, worker_id) AS rinl_id, worker_id, name, category, contractor_id, mobile, daily_wage
        FROM workers
        WHERE worker_id = $1
        LIMIT 1`,
@@ -287,7 +302,7 @@ const submitLeave = async (req, res, next) => {
     }
 
     const workerResult = await pool.query(
-      `SELECT worker_id, name, category, contractor_id
+      `SELECT COALESCE(rinl_id, worker_id) AS rinl_id, worker_id, name, category, contractor_id
        FROM workers
        WHERE worker_id = $1
        LIMIT 1`,

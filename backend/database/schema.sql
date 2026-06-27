@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS employees (
   id SERIAL PRIMARY KEY,
+  rinl_id TEXT UNIQUE,
   emp_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -33,7 +34,9 @@ CREATE TABLE IF NOT EXISTS login_logs (
 
 CREATE TABLE IF NOT EXISTS contractors (
   id SERIAL PRIMARY KEY,
+  rinl_id TEXT UNIQUE,
   contractor_id TEXT UNIQUE NOT NULL,
+  engineer_id TEXT,
   name TEXT NOT NULL,
   company TEXT,
   mobile TEXT,
@@ -42,12 +45,26 @@ CREATE TABLE IF NOT EXISTS contractors (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS supervisors (
+  id SERIAL PRIMARY KEY,
+  rinl_id TEXT UNIQUE,
+  supervisor_id TEXT UNIQUE NOT NULL,
+  contractor_id TEXT,
+  name TEXT NOT NULL,
+  mobile TEXT,
+  email TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS workers (
   id SERIAL PRIMARY KEY,
+  rinl_id TEXT UNIQUE,
   worker_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   category TEXT NOT NULL,
   contractor_id TEXT,
+  supervisor_id TEXT,
   mobile TEXT,
   daily_wage NUMERIC(10,2) DEFAULT 0,
   status TEXT DEFAULT 'active',
@@ -77,3 +94,33 @@ CREATE TABLE IF NOT EXISTS wage_sheets (
   net_wage NUMERIC(12,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE employees
+  ADD COLUMN IF NOT EXISTS rinl_id TEXT;
+
+ALTER TABLE contractors
+  ADD COLUMN IF NOT EXISTS rinl_id TEXT,
+  ADD COLUMN IF NOT EXISTS engineer_id TEXT;
+
+ALTER TABLE supervisors
+  ADD COLUMN IF NOT EXISTS rinl_id TEXT;
+
+ALTER TABLE workers
+  ADD COLUMN IF NOT EXISTS rinl_id TEXT,
+  ADD COLUMN IF NOT EXISTS supervisor_id TEXT;
+
+UPDATE employees SET rinl_id = emp_id WHERE rinl_id IS NULL;
+UPDATE contractors SET rinl_id = contractor_id WHERE rinl_id IS NULL;
+UPDATE supervisors SET rinl_id = supervisor_id WHERE rinl_id IS NULL;
+UPDATE workers SET rinl_id = worker_id WHERE rinl_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS employees_rinl_id_unique ON employees(rinl_id);
+CREATE UNIQUE INDEX IF NOT EXISTS contractors_rinl_id_unique ON contractors(rinl_id);
+CREATE UNIQUE INDEX IF NOT EXISTS supervisors_rinl_id_unique ON supervisors(rinl_id);
+CREATE UNIQUE INDEX IF NOT EXISTS workers_rinl_id_unique ON workers(rinl_id);
+CREATE INDEX IF NOT EXISTS contractors_engineer_idx ON contractors(engineer_id);
+CREATE INDEX IF NOT EXISTS supervisors_contractor_idx ON supervisors(contractor_id);
+CREATE INDEX IF NOT EXISTS workers_contractor_idx ON workers(contractor_id);
+CREATE INDEX IF NOT EXISTS workers_supervisor_idx ON workers(supervisor_id);
+CREATE INDEX IF NOT EXISTS attendance_worker_idx ON attendance(worker_id);
+CREATE INDEX IF NOT EXISTS wage_sheets_worker_idx ON wage_sheets(worker_id);

@@ -197,15 +197,16 @@ const saveWorker = async (req, res, next) => {
     if (!name || !category) return res.status(400).json({ message: "Worker name and category are required" });
 
     const result = await pool.query(
-      `INSERT INTO workers (worker_id, name, category, contractor_id, mobile, daily_wage, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active')
+      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, mobile, daily_wage, status)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, 'active')
        ON CONFLICT (worker_id) DO UPDATE SET
+         rinl_id = EXCLUDED.rinl_id,
          name = EXCLUDED.name,
          category = EXCLUDED.category,
          contractor_id = EXCLUDED.contractor_id,
          mobile = EXCLUDED.mobile,
          daily_wage = EXCLUDED.daily_wage
-       RETURNING worker_id, name, category, contractor_id, status`,
+       RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id, name, category, contractor_id, status`,
       [workerId, name, category, department || null, mobile || null, Number(daily_wage || 0)]
     );
     res.status(201).json({ message: "Worker saved", worker: normalizeWorker(result.rows[0]) });
@@ -224,7 +225,7 @@ const updateWorkerStatus = async (req, res, next) => {
            contractor_id = COALESCE($2, contractor_id),
            category = COALESCE($3, category)
        WHERE worker_id = $4
-       RETURNING worker_id, name, category, contractor_id, status`,
+       RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id, name, category, contractor_id, status`,
       [String(status).toLowerCase(), department || null, category || null, id]
     );
     if (!result.rows.length) return res.status(404).json({ message: "Worker not found" });

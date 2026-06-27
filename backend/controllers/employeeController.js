@@ -38,7 +38,7 @@ async function getDashboardStats(req, res, next) {
 
 async function getEmployees(req, res, next) {
   try {
-    const employees = await queryAll('SELECT id, emp_id, name, role, mobile, email, status, created_at FROM employees ORDER BY created_at DESC');
+    const employees = await queryAll('SELECT id, COALESCE(rinl_id, emp_id) AS rinl_id, emp_id, name, role, mobile, email, status, created_at FROM employees ORDER BY created_at DESC');
     return res.json({ success: true, employees });
   } catch (err) {
     next(err);
@@ -53,9 +53,9 @@ async function createEmployee(req, res, next) {
     }
 
     const employee = await queryOne(
-      `INSERT INTO employees (emp_id, name, role, mobile, email, password)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, emp_id, name, role, mobile, email, status, created_at`,
+      `INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password)
+       VALUES ($1, $1, $2, $3, $4, $5, $6)
+       RETURNING id, COALESCE(rinl_id, emp_id) AS rinl_id, emp_id, name, role, mobile, email, status, created_at`,
       [empId, name, role, mobile || null, email || null, password]
     );
     return res.status(201).json({ success: true, employee });
@@ -80,16 +80,16 @@ async function getWorkers(req, res, next) {
 
 async function createWorker(req, res, next) {
   try {
-    const { workerId, name, category, contractorId, mobile, dailyWage } = req.body;
+    const { workerId, name, category, contractorId, supervisorId, mobile, dailyWage } = req.body;
     if (!workerId || !name || !category) {
       return res.status(400).json({ success: false, message: 'Worker ID, name, and category are required.' });
     }
 
     const worker = await queryOne(
-      `INSERT INTO workers (worker_id, name, category, contractor_id, mobile, daily_wage)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, daily_wage)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [workerId, name, category, contractorId || null, mobile || null, dailyWage || 0]
+      [workerId, name, category, contractorId || null, supervisorId || null, mobile || null, dailyWage || 0]
     );
     return res.status(201).json({ success: true, worker });
   } catch (err) {
@@ -108,16 +108,16 @@ async function getContractors(req, res, next) {
 
 async function createContractor(req, res, next) {
   try {
-    const { contractorId, name, company, mobile, email } = req.body;
+    const { contractorId, engineerId, name, company, mobile, email } = req.body;
     if (!contractorId || !name) {
       return res.status(400).json({ success: false, message: 'Contractor ID and name are required.' });
     }
 
     const contractor = await queryOne(
-      `INSERT INTO contractors (contractor_id, name, company, mobile, email)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, company, mobile, email)
+       VALUES ($1, $1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [contractorId, name, company || null, mobile || null, email || null]
+      [contractorId, engineerId || null, name, company || null, mobile || null, email || null]
     );
     return res.status(201).json({ success: true, contractor });
   } catch (err) {
