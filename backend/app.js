@@ -8,8 +8,10 @@ const wageRoutes = require('./routes/wageRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const contractRoutes = require('./routes/contractRoutes');
 const workerRoutes = require('./routes/workerRoutes');
+const workerDashboardRoutes = require('./routes/workerDashboardRoutes');
 const musterRoutes = require('./routes/musterRoutes');
 const contractorRouter = require('./routes/contractorRouter');
+const supervisorRoutes = require('./routes/supervisorRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
@@ -66,8 +68,10 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/worker', workerRoutes);
 app.use('/api/workers', workerRoutes);
+app.use('/api/worker-dashboard', workerDashboardRoutes);
 app.use('/api/muster', musterRoutes);
 app.use('/api/contractor', contractorRouter);
+app.use('/api/supervisor', supervisorRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 
 app.get('/health', (req, res) => {

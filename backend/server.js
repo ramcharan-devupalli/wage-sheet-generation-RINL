@@ -16,7 +16,8 @@ async function initializeDatabase() {
 
   await db.query(`
     INSERT INTO employees (emp_id, name, role, mobile, email, password) VALUES
-      ('RINL-HR-001', 'Priya Sharma', 'Admin', '9876543210', 'priya@vizagsteel.com', '1234')
+      ('RINL-HR-001', 'Priya Sharma', 'Admin', '9876543210', 'priya@vizagsteel.com', '1234'),
+      ('RINL-AM-01', 'Admin Manager', 'Admin', '9346431127', 'admin@vizagsteel.com', '1234')
     ON CONFLICT (emp_id) DO NOTHING
   `);
 

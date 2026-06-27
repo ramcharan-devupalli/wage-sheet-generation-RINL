@@ -78,4 +78,73 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.patch("/:job_cd", async (req, res, next) => {
+  try {
+    const { job_cd } = req.params;
+    const {
+      contractor_name,
+      contractor_phone,
+      work_area,
+      dept_cd,
+      job_start_dt,
+      job_end_dt,
+    } = req.body;
+
+    if (!contractor_name) {
+      return res.status(400).json({ message: "Contractor name is required" });
+    }
+
+    const result = await pool.query(
+      `UPDATE contractors
+       SET name = $1,
+           mobile = $2,
+           company = $3
+       WHERE contractor_id = $4
+       RETURNING
+         contractor_id AS job_cd,
+         name AS contractor_name,
+         mobile AS contractor_phone,
+         company AS work_area,
+         $5::text AS dept_cd,
+         COALESCE($6::date, created_at::date) AS job_start_dt,
+         $7::date AS job_end_dt`,
+      [
+        contractor_name,
+        contractor_phone || null,
+        work_area || null,
+        job_cd,
+        dept_cd || "-",
+        job_start_dt || null,
+        job_end_dt || null,
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Contractor not found" });
+    }
+
+    res.json({ message: "Contractor updated successfully", contract: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/:job_cd", async (req, res, next) => {
+  try {
+    const { job_cd } = req.params;
+    const result = await pool.query(
+      "DELETE FROM contractors WHERE contractor_id = $1 RETURNING contractor_id",
+      [job_cd]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Contractor not found" });
+    }
+
+    res.json({ message: "Contractor deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

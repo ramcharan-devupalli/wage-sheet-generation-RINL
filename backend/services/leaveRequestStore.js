@@ -17,10 +17,10 @@ function saveLeaveRequest(worker, details) {
     fromDate: details.fromDate,
     toDate: details.toDate,
     reason: details.reason,
-    applyTo: details.applyTo || "Contractor",
+    applyTo: details.applyTo || "Supervisor",
     status: `Applied from ${details.fromDate} to ${details.toDate}`,
     approval: "Pending",
-    notification: "Leave request sent to contractor and pending review.",
+    notification: "Leave request sent to supervisor and pending review.",
     requestedDays: daysBetween(details.fromDate, details.toDate),
     used: 0,
     submittedAt: new Date().toISOString(),
@@ -49,8 +49,8 @@ function reviewLeaveRequest(workerId, decision) {
     status: approved ? "Leave Approved" : "Leave Rejected",
     approval: approved ? "Approved" : "Rejected",
     notification: approved
-      ? "Your leave request was approved by contractor."
-      : "Your leave request was rejected by contractor.",
+      ? "Your leave request was approved by supervisor."
+      : "Your leave request was rejected by supervisor.",
     used: approved ? request.requestedDays : 0,
     reviewedAt: new Date().toISOString(),
   };

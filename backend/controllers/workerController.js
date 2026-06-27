@@ -121,6 +121,91 @@ const getWorkers = async (req, res, next) => {
   }
 };
 
+const updateWorker = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      adhar_id,
+      worker_id,
+      worker_name,
+      name,
+      job_cd,
+      contractor_id,
+      worker_skill,
+      category,
+      worker_desig,
+      mobile,
+      daily_wage,
+      status,
+    } = req.body;
+
+    const workerId = String(adhar_id || worker_id || id || "").trim();
+    const workerName = worker_name || name;
+    const skill = worker_skill || category || worker_desig;
+
+    if (!workerId || !workerName || !skill) {
+      return res.status(400).json({ message: "Worker ID, name, and skill are required" });
+    }
+
+    const result = await pool.query(
+      `UPDATE workers
+       SET worker_id = $1,
+           name = $2,
+           contractor_id = $3,
+           category = $4,
+           mobile = $5,
+           daily_wage = $6,
+           status = $7
+       WHERE worker_id = $8
+       RETURNING
+         worker_id AS adhar_id,
+         name AS worker_name,
+         contractor_id AS job_cd,
+         category AS worker_desig,
+         category AS worker_skill,
+         mobile,
+         daily_wage,
+         '-' AS worker_gender`,
+      [
+        workerId,
+        workerName,
+        job_cd || contractor_id || null,
+        skill,
+        mobile || null,
+        Number(daily_wage || 0),
+        status || "active",
+        id,
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Worker not found" });
+    }
+
+    res.json({ message: "Worker updated successfully", worker: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteWorker = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "DELETE FROM workers WHERE worker_id = $1 RETURNING worker_id",
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Worker not found" });
+    }
+
+    res.json({ message: "Worker deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getCurrentWorker = async (req, res, next) => {
   try {
     const workerId = await resolveWorkerId(req);
@@ -217,10 +302,10 @@ const submitLeave = async (req, res, next) => {
       fromDate,
       toDate,
       reason,
-      applyTo: applyTo || "Contractor",
+      applyTo: applyTo || "Supervisor",
     });
 
-    res.status(201).json({ message: "Leave request sent to contractor" });
+    res.status(201).json({ message: "Leave request sent to supervisor" });
   } catch (err) {
     next(err);
   }
@@ -229,6 +314,8 @@ const submitLeave = async (req, res, next) => {
 module.exports = {
   createWorker,
   getWorkers,
+  updateWorker,
+  deleteWorker,
   getCurrentWorker,
   submitLeave,
 };

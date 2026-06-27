@@ -20,6 +20,24 @@ function normalizeRole(role) {
   return role || "Worker";
 }
 
+function looksLikeEngineer(row) {
+  const text = [
+    row?.role,
+    row?.name,
+    row?.email,
+    row?.emp_id,
+    row?.employee_id,
+  ].join(" ").toLowerCase();
+
+  return /\b(engineer|eic|engineer incharge|engineer in charge)\b/.test(text);
+}
+
+function inferRole(row, fallback = "Worker") {
+  const explicitRole = value(row, ["role", "user_role"], "");
+  if (explicitRole) return normalizeRole(explicitRole);
+  return looksLikeEngineer(row) ? "Engineer Incharge" : normalizeRole(fallback);
+}
+
 const getAdminStats = async (req, res) => {
   try {
     const users = await pool.query("SELECT COUNT(*) FROM employees");
@@ -50,12 +68,114 @@ const getAllUsers = async (req, res) => {
     const result = await pool.query(`
       SELECT id, name, email, mobile, role, emp_id AS employee_id, status, created_at
       FROM employees
+      WHERE NOT (
+        LOWER(COALESCE(role, '')) IN ('engineer', 'engineer incharge', 'engineer in charge')
+        OR LOWER(COALESCE(email, '')) LIKE '%engineer%'
+        OR LOWER(COALESCE(name, '')) LIKE '%engineer%'
+        OR LOWER(COALESCE(emp_id, '')) LIKE '%eic%'
+      )
       ORDER BY id DESC
     `);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error loading users" });
+  }
+};
+
+const getEngineers = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        name,
+        email,
+        mobile,
+        'Engineer Incharge' AS role,
+        emp_id AS employee_id,
+        status,
+        created_at
+      FROM employees
+      WHERE LOWER(COALESCE(role, '')) IN ('engineer', 'engineer incharge', 'engineer in charge')
+        OR LOWER(COALESCE(email, '')) LIKE '%engineer%'
+        OR LOWER(COALESCE(name, '')) LIKE '%engineer%'
+        OR LOWER(COALESCE(emp_id, '')) LIKE '%eic%'
+      ORDER BY id DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error loading engineers" });
+  }
+};
+
+const createEngineer = async (req, res) => {
+  try {
+    const {
+      employee_id,
+      rinl_id,
+      emp_id,
+      name,
+      email,
+      mobile,
+      password,
+      status,
+    } = req.body;
+
+    const empId = String(rinl_id || employee_id || emp_id || "").trim();
+    const engineerName = String(name || "").trim();
+
+    if (!empId || !engineerName) {
+      return res.status(400).json({ message: "Engineer ID and name are required" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO employees (emp_id, name, role, mobile, email, password, status)
+       VALUES ($1, $2, 'Engineer Incharge', $3, $4, $5, $6)
+       ON CONFLICT (emp_id) DO UPDATE SET
+         name = EXCLUDED.name,
+         role = EXCLUDED.role,
+         mobile = EXCLUDED.mobile,
+         email = EXCLUDED.email,
+         password = EXCLUDED.password,
+         status = EXCLUDED.status
+       RETURNING id, name, email, mobile, role, emp_id AS employee_id, status, created_at`,
+      [
+        empId,
+        engineerName,
+        mobile || null,
+        email || null,
+        password || "1234",
+        String(status || "active").toLowerCase(),
+      ]
+    );
+
+    res.status(201).json({ message: "Engineer saved successfully", engineer: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error saving engineer" });
+  }
+};
+
+const deleteEngineer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `DELETE FROM employees
+       WHERE id = $1
+         AND LOWER(role) IN ('engineer', 'engineer incharge', 'engineer in charge')
+       RETURNING id`,
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Engineer not found" });
+    }
+
+    res.json({ message: "Engineer deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error deleting engineer" });
   }
 };
 
@@ -160,13 +280,20 @@ const importUsers = async (req, res) => {
     const imported = [];
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
-      const empId = value(row, ["employee_id", "emp_id", "id"], `EMP-${Date.now()}-${index + 1}`);
+      const empId = value(row, ["rinl_id", "rinl-id", "employee_id", "emp_id", "id"], `EMP-${Date.now()}-${index + 1}`);
       const name = value(row, ["name", "employee_name", "user_name"], empId);
-      const role = normalizeRole(value(row, ["role", "user_role"], "Worker"));
       const mobile = value(row, ["mobile", "phone", "phone_number"], null);
       const email = value(row, ["email", "mail"], null);
+      const role = inferRole({ ...row, emp_id: empId, name, email }, "Worker");
       const password = value(row, ["password", "pwd"], "1234");
       const status = value(row, ["status"], "active").toLowerCase();
+
+      if (!empId || empId.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Employee ID is required.` });
+      }
+      if (!name || name.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Name is required.` });
+      }
 
       const result = await pool.query(
         `INSERT INTO employees (emp_id, name, role, mobile, email, password, status)
@@ -183,10 +310,10 @@ const importUsers = async (req, res) => {
       );
       imported.push(result.rows[0]);
     }
-    res.json({ message: "Users imported", users: imported });
+    res.json({ message: "Users imported successfully", users: imported });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error importing users" });
+    res.status(400).json({ message: `Database error during users import: ${err.message}` });
   }
 };
 
@@ -202,6 +329,14 @@ const importContracts = async (req, res) => {
       const name = value(row, ["contractor_name", "contractor", "name"], contractorId);
       const mobile = value(row, ["contractor_phone", "phone", "mobile"], null);
       const company = value(row, ["work_area", "company", "area"], null);
+
+      if (!contractorId || contractorId.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Job Code/Contractor ID is required.` });
+      }
+      if (!name || name.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Contractor Name is required.` });
+      }
+
       const result = await pool.query(
         `INSERT INTO contractors (contractor_id, name, mobile, company)
          VALUES ($1, $2, $3, $4)
@@ -214,10 +349,10 @@ const importContracts = async (req, res) => {
       );
       imported.push(result.rows[0]);
     }
-    res.json({ message: "Contracts imported", contracts: imported });
+    res.json({ message: "Contracts imported successfully", contracts: imported });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error importing contracts" });
+    res.status(400).json({ message: `Database error during contracts import: ${err.message}` });
   }
 };
 
@@ -235,6 +370,14 @@ const importWorkers = async (req, res) => {
       const contractorId = value(row, ["job_cd", "job_code", "contractor_id"], null);
       const mobile = value(row, ["mobile", "phone", "phone_number"], null);
       const dailyWage = Number(value(row, ["daily_wage", "wage", "rate"], 0)) || 0;
+
+      if (!workerId || workerId.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Aadhaar ID/Worker ID is required.` });
+      }
+      if (!name || name.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Worker Name is required.` });
+      }
+
       const result = await pool.query(
         `INSERT INTO workers (worker_id, name, category, contractor_id, mobile, daily_wage, status)
          VALUES ($1, $2, $3, $4, $5, $6, 'active')
@@ -250,19 +393,219 @@ const importWorkers = async (req, res) => {
       );
       imported.push(result.rows[0]);
     }
-    res.json({ message: "Workers imported", workers: imported });
+    res.json({ message: "Workers imported successfully", workers: imported });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error importing workers" });
+    res.status(400).json({ message: `Database error during workers import: ${err.message}` });
+  }
+};
+
+const importMuster = async (req, res) => {
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  if (!rows.length) return res.status(400).json({ message: "No muster rows provided" });
+
+  try {
+    const imported = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      const workerId = value(row, ["worker_id", "adhar_id", "aadhaar_id", "aadhar_id"], "");
+      const workerName = value(row, ["worker_name", "name"], workerId);
+      const jobCd = value(row, ["job_cd", "job_code", "contractor_id"], null);
+      const contractorName = value(row, ["contractor_name", "contractor"], "-");
+      const musterMonth = value(row, ["muster_month", "month", "date"], "");
+
+      if (!workerId || workerId.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Aadhaar ID/Worker ID is required.` });
+      }
+      if (!musterMonth || musterMonth.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Muster month is required.` });
+      }
+
+      const match = String(musterMonth).split("-");
+      const year = Number(match[0]);
+      const month = Number(match[1]);
+      if (!year || !month) {
+        return res.status(400).json({ message: `Row ${index + 1}: Month must be in YYYY-MM format.` });
+      }
+
+      const present = Number(value(row, ["present"], 0)) || 0;
+      const absent = Number(value(row, ["absent"], 0)) || 0;
+      const weeklyOff = Number(value(row, ["weekly_off", "wo"], 0)) || 0;
+      const holidays = Number(value(row, ["holidays", "h"], 0)) || 0;
+      const leaves = Number(value(row, ["leaves", "l"], 0)) || 0;
+
+      const days = [
+        ...Array.from({ length: present }, () => "present"),
+        ...Array.from({ length: absent + weeklyOff + holidays + leaves }, () => "absent"),
+      ];
+
+      // Delete existing attendance for this worker and month
+      await pool.query(
+        "DELETE FROM attendance WHERE worker_id = $1 AND date >= $2::date AND date < ($2::date + INTERVAL '1 month')",
+        [workerId, `${year}-${String(month).padStart(2, "0")}-01`]
+      );
+
+      // Insert daily attendance
+      for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
+        await pool.query(
+          "INSERT INTO attendance (worker_id, date, status) VALUES ($1, $2::date + ($3::int * INTERVAL '1 day'), $4)",
+          [workerId, `${year}-${String(month).padStart(2, "0")}-01`, dayIdx, days[dayIdx]]
+        );
+      }
+
+      imported.push({
+        worker_name: workerName,
+        worker_id: workerId,
+        job_cd: jobCd,
+        contractor_name: contractorName,
+        muster_month: musterMonth,
+        present,
+        absent,
+        weekly_off: weeklyOff,
+        holidays,
+        leaves,
+      });
+    }
+
+    res.json({ message: "Muster imported successfully", muster: imported });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: `Database error during muster import: ${err.message}` });
+  }
+};
+
+const importWages = async (req, res) => {
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  if (!rows.length) return res.status(400).json({ message: "No wage rows provided" });
+
+  try {
+    const imported = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      const workerId = value(row, ["worker_id", "adhar_id", "aadhaar_id", "aadhar_id"], "");
+      const workerName = value(row, ["worker_name", "name"], workerId);
+      const contractorId = value(row, ["job_cd", "job_code", "contractor_id"], null);
+      const contractorName = value(row, ["contractor_name", "contractor"], "-");
+      const wageMonth = value(row, ["wage_month", "muster_month", "month", "period", "date"], "");
+
+      if (!workerId || workerId.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Aadhaar ID/Worker ID is required.` });
+      }
+      if (!wageMonth || wageMonth.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Wage month/period is required.` });
+      }
+
+      const match = String(wageMonth).split("-");
+      const year = Number(match[0]);
+      const monthNum = Number(match[1]);
+      if (!year || !monthNum) {
+        return res.status(400).json({ message: `Row ${index + 1}: Month must be in YYYY-MM format.` });
+      }
+
+      const monthDate = new Date(year, monthNum - 1, 1);
+      const monthName = monthDate.toLocaleString("en-US", { month: "long" }).toLowerCase();
+
+      const daysPresent = Number(value(row, ["present", "days_present"], 0)) || 0;
+      const workerCount = Number(value(row, ["worker_count", "workers"], 1)) || 1;
+
+      // Determine daily wage: either from row or from workers table or default to 0
+      let dailyWage = Number(value(row, ["daily_wage", "wage", "rate"], 0)) || 0;
+      if (!dailyWage) {
+        const workerRes = await pool.query("SELECT daily_wage FROM workers WHERE worker_id = $1", [workerId]);
+        if (workerRes.rows.length > 0) {
+          dailyWage = Number(workerRes.rows[0].daily_wage) || 0;
+        }
+      }
+
+      const uploadedExpense = Number(value(row, ["wage_expense", "expense", "amount"], 0)) || 0;
+      const grossWage = uploadedExpense || (daysPresent * dailyWage);
+      const pfDeduction = grossWage * 0.12;
+      const esiDeduction = grossWage * 0.0075;
+      const netWage = grossWage - pfDeduction - esiDeduction;
+
+      // Delete existing wage sheet for this worker and month/year to avoid duplicates
+      await pool.query(
+        "DELETE FROM wage_sheets WHERE worker_id = $1 AND LOWER(TRIM(month)) = LOWER($2) AND year = $3",
+        [workerId, monthName, year]
+      );
+
+      // Insert wage sheet record
+      await pool.query(
+        `INSERT INTO wage_sheets
+         (worker_id, contractor_id, month, year, days_present, overtime_hrs, gross_wage, pf_deduction, esi_deduction, net_wage)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [workerId, contractorId, monthName, year, daysPresent, 0, grossWage, pfDeduction, esiDeduction, netWage]
+      );
+
+      imported.push({
+        worker_id: workerId,
+        worker_name: workerName,
+        job_cd: contractorId,
+        contractor_name: contractorName,
+        wage_month: wageMonth,
+        present: daysPresent,
+        worker_count: workerCount,
+        daily_wage: dailyWage,
+        wage_expense: grossWage,
+      });
+    }
+
+    res.json({ message: "Wages imported successfully", wages: imported });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: `Database error during wages import: ${err.message}` });
+  }
+};
+
+const clearData = async (req, res) => {
+  const sessionId = req.headers["x-session-id"];
+  if (!sessionId) {
+    return res.status(401).json({ message: "No session ID provided. Unauthorized access." });
+  }
+
+  try {
+    const sessionResult = await pool.query(
+      "SELECT role FROM login_sessions WHERE id = $1 AND status = 'active'",
+      [sessionId]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      return res.status(403).json({ message: "Invalid or expired session. Please log in again." });
+    }
+
+    const userRole = sessionResult.rows[0].role;
+    if (userRole !== "Admin") {
+      return res.status(403).json({ message: "Access denied. Only Admins can wipe database data." });
+    }
+
+    // Safely truncate/delete uploaded records
+    await pool.query("TRUNCATE TABLE attendance CASCADE");
+    await pool.query("TRUNCATE TABLE wage_sheets CASCADE");
+    await pool.query("TRUNCATE TABLE workers CASCADE");
+    await pool.query("TRUNCATE TABLE contractors CASCADE");
+    await pool.query("DELETE FROM employees WHERE emp_id != 'RINL-HR-001'");
+    await pool.query("DELETE FROM login_sessions WHERE emp_id != 'RINL-HR-001'");
+    await pool.query("DELETE FROM login_logs WHERE emp_id != 'RINL-HR-001'");
+
+    res.json({ message: "All uploaded records have been cleared from the database successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: `Failed to wipe database data: ${err.message}` });
   }
 };
 
 module.exports = {
   getAdminStats,
   getAllUsers,
+  getEngineers,
+  createEngineer,
+  deleteEngineer,
   importUsers,
   importContracts,
   importWorkers,
+  importMuster,
+  importWages,
+  clearData,
   updateUserStatus,
   getWageRates,
   updateWageRate,
