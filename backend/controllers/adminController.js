@@ -1,8 +1,21 @@
 const pool = require("../config/dbConfig");
 
+function normalizeKey(key) {
+  return String(key || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function value(row, keys, fallback = "") {
+  const normalizedRow = {};
+  Object.entries(row || {}).forEach(([key, rowValue]) => {
+    normalizedRow[normalizeKey(key)] = rowValue;
+  });
+
   for (const key of keys) {
-    const found = row[key];
+    const found = normalizedRow[normalizeKey(key)];
     if (found !== undefined && found !== null && String(found).trim() !== "") return String(found).trim();
   }
   return fallback;
@@ -18,6 +31,15 @@ function normalizeRole(role) {
   if (["semi skilled worker", "semi skilled labor", "semi-skilled worker", "semi-skilled labor"].includes(normalized)) return "Semi-Skilled Worker";
   if (["unskilled worker", "unskilled labor"].includes(normalized)) return "Unskilled Worker";
   return role || "Worker";
+}
+
+function normalizeWageCategory(category) {
+  const normalized = normalizeKey(category).replace(/_/g, "");
+  if (normalized.includes("supervisor")) return "Supervisor";
+  if (normalized === "skill" || normalized.includes("semiskilled")) return "Semi Skilled";
+  if (normalized.includes("unskilled") || normalized === "") return "UnSkilled";
+  if (normalized.includes("skilled")) return "Skilled";
+  return category || "";
 }
 
 function looksLikeEngineer(row) {
@@ -36,6 +58,43 @@ function inferRole(row, fallback = "Worker") {
   const explicitRole = value(row, ["role", "user_role"], "");
   if (explicitRole) return normalizeRole(explicitRole);
   return looksLikeEngineer(row) ? "Engineer Incharge" : normalizeRole(fallback);
+}
+
+function compactId(raw) {
+  return String(raw || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function idAliases(raw) {
+  const value = String(raw || "").trim();
+  const compact = compactId(value);
+  const withoutRinlPrefix = value.replace(/^rinl[-_\s]*/i, "");
+  return Array.from(new Set([
+    value.toLowerCase(),
+    withoutRinlPrefix.toLowerCase(),
+    compact,
+    compact.replace(/^rinl/, "")
+  ].filter(Boolean)));
+}
+
+async function resolveEngineerId(rawEngineerId) {
+  const aliases = idAliases(rawEngineerId);
+  if (!aliases.length) return rawEngineerId || null;
+
+  const result = await pool.query(
+    `SELECT COALESCE(rinl_id, emp_id) AS engineer_id
+     FROM employees
+     WHERE LOWER(COALESCE(role, '')) IN ('engineer', 'engineer incharge', 'engineer in charge')
+       AND (
+         LOWER(COALESCE(rinl_id, emp_id)) = ANY($1::text[])
+         OR LOWER(emp_id) = ANY($1::text[])
+         OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+         OR LOWER(REGEXP_REPLACE(COALESCE(emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+       )
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  return result.rows[0]?.engineer_id || rawEngineerId || null;
 }
 
 const getAdminStats = async (req, res) => {
@@ -181,6 +240,175 @@ const deleteEngineer = async (req, res) => {
   }
 };
 
+const getSupervisors = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        s.id,
+        COALESCE(s.rinl_id, s.supervisor_id) AS rinl_id,
+        s.supervisor_id,
+        s.contractor_id,
+        s.name,
+        s.mobile,
+        s.email,
+        s.status,
+        COALESCE(s.present, 0) AS present,
+        COALESCE(s.absent, 0) AS absent,
+        COALESCE(s.overtime, 0) AS overtime,
+        s.created_at
+      FROM supervisors s
+      GROUP BY s.id, s.rinl_id, s.supervisor_id, s.contractor_id, s.name, s.mobile, s.email, s.present, s.absent, s.overtime, s.status, s.created_at
+      ORDER BY s.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error loading supervisors" });
+  }
+};
+
+const saveSupervisor = async (req, res) => {
+  try {
+    const {
+      supervisor_id,
+      rinl_id,
+      contractor_id,
+      name,
+      mobile,
+      email,
+      status,
+      present,
+      absent,
+      overtime,
+    } = req.body;
+
+    const supervisorId = String(supervisor_id || rinl_id || "").trim();
+    const supervisorName = String(name || "").trim();
+
+    if (!supervisorId || !supervisorName) {
+      return res.status(400).json({ message: "Supervisor ID and name are required" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO supervisors (rinl_id, supervisor_id, contractor_id, name, mobile, email, status, present, absent, overtime)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (supervisor_id) DO UPDATE SET
+         rinl_id = EXCLUDED.rinl_id,
+         contractor_id = EXCLUDED.contractor_id,
+         name = EXCLUDED.name,
+         mobile = EXCLUDED.mobile,
+         email = EXCLUDED.email,
+         status = EXCLUDED.status,
+         present = EXCLUDED.present,
+         absent = EXCLUDED.absent,
+         overtime = EXCLUDED.overtime
+       RETURNING id, COALESCE(rinl_id, supervisor_id) AS rinl_id, supervisor_id, contractor_id, name, mobile, email, status, present, absent, overtime, created_at`,
+      [
+        supervisorId,
+        contractor_id || null,
+        supervisorName,
+        mobile || null,
+        email || null,
+        String(status || "active").toLowerCase(),
+        Number(present || 0),
+        Number(absent || 0),
+        Number(overtime || 0),
+      ]
+    );
+
+    res.status(201).json({ message: "Supervisor saved successfully", supervisor: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error saving supervisor" });
+  }
+};
+
+const updateSupervisor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      supervisor_id,
+      rinl_id,
+      contractor_id,
+      name,
+      mobile,
+      email,
+      status,
+      present,
+      absent,
+      overtime,
+    } = req.body;
+
+    const supervisorId = String(supervisor_id || rinl_id || id || "").trim();
+    const supervisorName = String(name || "").trim();
+
+    if (!supervisorId || !supervisorName) {
+      return res.status(400).json({ message: "Supervisor ID and name are required" });
+    }
+
+    const result = await pool.query(
+      `UPDATE supervisors
+       SET rinl_id = $1,
+           supervisor_id = $1,
+           contractor_id = $2,
+           name = $3,
+           mobile = $4,
+           email = $5,
+           status = $6,
+           present = $7,
+           absent = $8,
+           overtime = $9
+       WHERE supervisor_id = $10
+       RETURNING id, COALESCE(rinl_id, supervisor_id) AS rinl_id, supervisor_id, contractor_id, name, mobile, email, status, present, absent, overtime, created_at`,
+      [
+        supervisorId,
+        contractor_id || null,
+        supervisorName,
+        mobile || null,
+        email || null,
+        String(status || "active").toLowerCase(),
+        Number(present || 0),
+        Number(absent || 0),
+        Number(overtime || 0),
+        id,
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Supervisor not found" });
+    }
+
+    res.json({ message: "Supervisor updated successfully", supervisor: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error updating supervisor" });
+  }
+};
+
+const deleteSupervisor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "DELETE FROM supervisors WHERE supervisor_id = $1 RETURNING supervisor_id",
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Supervisor not found" });
+    }
+
+    await pool.query(
+      "UPDATE workers SET supervisor_id = NULL WHERE supervisor_id = $1",
+      [id]
+    );
+
+    res.json({ message: "Supervisor deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error deleting supervisor" });
+  }
+};
+
 const updateUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -199,12 +427,34 @@ const updateUserStatus = async (req, res) => {
 const getWageRates = async (req, res) => {
   try {
     const result = await pool.query(`
+      WITH fixed_categories(worker_skill, sort_order) AS (
+        VALUES
+          ('Supervisor', 1),
+          ('Skilled', 2),
+          ('Semi Skilled', 3),
+          ('UnSkilled', 4)
+      ),
+      normalized_rates AS (
+        SELECT
+          CASE
+            WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%supervisor%' THEN 'Supervisor'
+            WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) = 'skill'
+              OR LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%semiskilled%' THEN 'Semi Skilled'
+            WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%unskilled%'
+              OR LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) = '' THEN 'UnSkilled'
+            WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%skilled%' THEN 'Skilled'
+            ELSE NULL
+          END AS worker_skill,
+          daily_wage
+        FROM workers
+      )
       SELECT
-        category AS worker_skill,
-        COALESCE(MAX(daily_wage), 0) AS daily_wage
-      FROM workers
-      GROUP BY category
-      ORDER BY category
+        fixed_categories.worker_skill,
+        COALESCE(MAX(normalized_rates.daily_wage), 0) AS daily_wage
+      FROM fixed_categories
+      LEFT JOIN normalized_rates ON normalized_rates.worker_skill = fixed_categories.worker_skill
+      GROUP BY fixed_categories.worker_skill, fixed_categories.sort_order
+      ORDER BY fixed_categories.sort_order
     `);
     res.json(result.rows);
   } catch (err) {
@@ -217,11 +467,27 @@ const updateWageRate = async (req, res) => {
   try {
     const { skill } = req.params;
     const { daily_wage } = req.body;
+    const normalizedSkill = normalizeWageCategory(skill);
     const result = await pool.query(
-      "UPDATE workers SET daily_wage = $1 WHERE category = $2 RETURNING category AS worker_skill, daily_wage",
-      [daily_wage, skill]
+      `UPDATE workers
+       SET daily_wage = $1,
+           category = $2
+       WHERE CASE
+         WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%supervisor%' THEN 'Supervisor'
+         WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) = 'skill'
+           OR LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%semiskilled%' THEN 'Semi Skilled'
+         WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%unskilled%'
+           OR LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) = '' THEN 'UnSkilled'
+         WHEN LOWER(REGEXP_REPLACE(COALESCE(category, ''), '[^a-zA-Z0-9]+', '', 'g')) LIKE '%skilled%' THEN 'Skilled'
+         ELSE category
+       END = $2
+       RETURNING $2 AS worker_skill, daily_wage`,
+      [daily_wage, normalizedSkill]
     );
-    res.json({ message: "Wage rate updated", wage_rate: result.rows[0] });
+    res.json({
+      message: "Wage rate updated",
+      wage_rate: result.rows[0] || { worker_skill: normalizedSkill, daily_wage }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error updating wage rate" });
@@ -286,6 +552,7 @@ const importUsers = async (req, res) => {
       const name = value(row, ["name", "employee_name", "user_name"], empId);
       const mobile = value(row, ["mobile", "phone", "phone_number"], null);
       const email = value(row, ["email", "mail"], null);
+      const contractorId = value(row, ["contractor_id", "job_cd", "job_code"], null);
       const role = inferRole({ ...row, emp_id: empId, name, email }, "Worker");
       const password = value(row, ["password", "pwd"], "1234");
       const status = value(row, ["status"], "active").toLowerCase();
@@ -311,6 +578,20 @@ const importUsers = async (req, res) => {
          RETURNING id, COALESCE(rinl_id, emp_id) AS rinl_id, name, email, mobile, role, emp_id AS employee_id, status, created_at`,
         [empId, name, role, mobile, email, password, status]
       );
+      if (/supervisor/i.test(role)) {
+        await pool.query(
+          `INSERT INTO supervisors (rinl_id, supervisor_id, contractor_id, name, mobile, email, status)
+           VALUES ($1, $1, $2, $3, $4, $5, $6)
+           ON CONFLICT (supervisor_id) DO UPDATE SET
+             rinl_id = EXCLUDED.rinl_id,
+             contractor_id = EXCLUDED.contractor_id,
+             name = EXCLUDED.name,
+             mobile = EXCLUDED.mobile,
+             email = EXCLUDED.email,
+             status = EXCLUDED.status`,
+          [empId, contractorId, name, mobile, email, status]
+        );
+      }
       imported.push(result.rows[0]);
     }
     res.json({ message: "Users imported successfully", users: imported });
@@ -329,6 +610,7 @@ const importContracts = async (req, res) => {
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       const contractorId = value(row, ["job_cd", "job_code", "contractor_id", "contract_id"], `CON-${Date.now()}-${index + 1}`);
+      const engineerId = await resolveEngineerId(value(row, ["engineer_id", "engineer", "engineer_incharge", "engineer_rinl_id", "eic_id"], null));
       const name = value(row, ["contractor_name", "contractor", "name"], contractorId);
       const mobile = value(row, ["contractor_phone", "phone", "mobile"], null);
       const company = value(row, ["work_area", "company", "area"], null);
@@ -341,15 +623,16 @@ const importContracts = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO contractors (rinl_id, contractor_id, name, mobile, company)
-         VALUES ($1, $1, $2, $3, $4)
+        `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, company)
+         VALUES ($1, $1, $2, $3, $4, $5)
          ON CONFLICT (contractor_id) DO UPDATE SET
            rinl_id = EXCLUDED.rinl_id,
+           engineer_id = EXCLUDED.engineer_id,
            name = EXCLUDED.name,
            mobile = EXCLUDED.mobile,
            company = EXCLUDED.company
-         RETURNING COALESCE(rinl_id, contractor_id) AS rinl_id, contractor_id AS job_cd, name AS contractor_name, mobile AS contractor_phone, company AS work_area, '-' AS dept_cd, created_at AS job_start_dt, NULL AS job_end_dt`,
-        [contractorId, name, mobile, company]
+         RETURNING COALESCE(rinl_id, contractor_id) AS rinl_id, contractor_id AS job_cd, engineer_id, name AS contractor_name, mobile AS contractor_phone, company AS work_area, '-' AS dept_cd, created_at AS job_start_dt, NULL AS job_end_dt`,
+        [contractorId, engineerId, name, mobile, company]
       );
       imported.push(result.rows[0]);
     }
@@ -357,6 +640,56 @@ const importContracts = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(400).json({ message: `Database error during contracts import: ${err.message}` });
+  }
+};
+
+const importSupervisors = async (req, res) => {
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  if (!rows.length) return res.status(400).json({ message: "No supervisor rows provided" });
+
+  try {
+    const imported = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      const supervisorId = value(row, ["supervisor_id", "supervisor_rinl_id", "rinl_id", "rinl-id"], `SUP-${Date.now()}-${index + 1}`);
+      const contractorId = value(row, ["contractor_id", "job_cd", "job_code", "contract_id"], null);
+      const name = value(row, ["name", "supervisor_name", "supervisor", "employee_name", "person_name", "full_name"], supervisorId);
+      const mobile = value(row, ["mobile", "mobile_number", "supervisor_mobile", "phone", "phone_number", "contact", "contact_number"], null);
+      const email = value(row, ["email", "email_id", "mail", "mail_id", "supervisor_email"], null);
+      const status = value(row, ["status"], "active").toLowerCase();
+      const present = Number(value(row, ["present", "present_days", "days_present", "total_present_days"], 0)) || 0;
+      const absent = Number(value(row, ["absent", "absent_days", "total_absent_days"], 0)) || 0;
+      const overtime = Number(value(row, ["overtime", "overtime_hrs", "ot"], 0)) || 0;
+
+      if (!supervisorId || supervisorId.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Supervisor ID is required.` });
+      }
+      if (!name || name.trim() === "") {
+        return res.status(400).json({ message: `Row ${index + 1}: Supervisor Name is required.` });
+      }
+
+      const result = await pool.query(
+        `INSERT INTO supervisors (rinl_id, supervisor_id, contractor_id, name, mobile, email, status, present, absent, overtime)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (supervisor_id) DO UPDATE SET
+           rinl_id = EXCLUDED.rinl_id,
+           contractor_id = EXCLUDED.contractor_id,
+           name = EXCLUDED.name,
+           mobile = EXCLUDED.mobile,
+           email = EXCLUDED.email,
+           status = EXCLUDED.status,
+           present = EXCLUDED.present,
+           absent = EXCLUDED.absent,
+           overtime = EXCLUDED.overtime
+         RETURNING id, COALESCE(rinl_id, supervisor_id) AS rinl_id, supervisor_id, contractor_id, name, mobile, email, status, present, absent, overtime, created_at`,
+        [supervisorId, contractorId, name, mobile, email, status, present, absent, overtime]
+      );
+      imported.push(result.rows[0]);
+    }
+    res.json({ message: "Supervisors imported successfully", supervisors: imported });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: `Database error during supervisors import: ${err.message}` });
   }
 };
 
@@ -368,12 +701,17 @@ const importWorkers = async (req, res) => {
     const imported = [];
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
-      const workerId = value(row, ["adhar_id", "aadhaar_id", "aadhar_id", "worker_id"], `W-${Date.now()}-${index + 1}`);
-      const name = value(row, ["worker_name", "name"], workerId);
-      const category = value(row, ["worker_skill", "skill", "category", "worker_desig"], "Worker");
-      const contractorId = value(row, ["job_cd", "job_code", "contractor_id"], null);
+      const workerId = value(row, ["adhar_id", "aadhaar_id", "aadhar_id", "worker_id", "worker_rinl_id", "rinl_id", "rinl-id", "id"], `W-${Date.now()}-${index + 1}`);
+      const name = value(row, ["worker_name", "name", "employee_name", "person_name", "full_name"], workerId);
+      const category = value(row, ["worker_skill", "worker skill", "skill", "skill_type", "skill type", "skill_category", "skill category", "category", "worker_desig", "worker desig", "designation", "designation_name", "designation name", "worker_designation", "worker designation"], "Worker");
+      const contractorId = value(row, ["job_cd", "job_code", "job", "job_id", "contractor_id", "contract_id", "contract_code", "contract"], null);
+      const supervisorId = value(row, ["supervisor_id", "supervisor id", "supervisor", "supervisor_rinl_id", "supervisor rinl id", "supervisor_rinl", "supervisor_code", "supervisor code"], null);
       const mobile = value(row, ["mobile", "phone", "phone_number"], null);
-      const dailyWage = Number(value(row, ["daily_wage", "wage", "rate"], 0)) || 0;
+      const gender = value(row, ["worker_gender", "worker gender", "gender", "gender_name", "gender name", "sex"], null);
+      const dailyWage = Number(value(row, ["daily_wage", "daily wage", "daily_wages", "daily wages", "wage", "wages", "wage_rate", "wage rate", "rate", "daily_rate", "daily rate", "rate_per_day", "rate per day", "wage_per_day", "wage per day", "basic_wage", "basic wage", "basic_rate", "basic rate", "per_day_rate", "per day rate", "per_day_wage", "per day wage"], 0)) || 0;
+      const present = Number(value(row, ["present", "present_days", "days_present", "total_present_days"], 0)) || 0;
+      const absent = Number(value(row, ["absent", "absent_days", "total_absent_days"], 0)) || 0;
+      const overtime = Number(value(row, ["overtime", "overtime_hrs", "ot"], 0)) || 0;
 
       if (!workerId || workerId.trim() === "") {
         return res.status(400).json({ message: `Row ${index + 1}: Aadhaar ID/Worker ID is required.` });
@@ -383,20 +721,22 @@ const importWorkers = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, mobile, daily_wage, status)
-         VALUES ($1, $1, $2, $3, $4, $5, $6, 'active')
+        `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, gender, daily_wage, status)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, 'active')
          ON CONFLICT (worker_id) DO UPDATE SET
            rinl_id = EXCLUDED.rinl_id,
            name = EXCLUDED.name,
            category = EXCLUDED.category,
            contractor_id = EXCLUDED.contractor_id,
+           supervisor_id = EXCLUDED.supervisor_id,
            mobile = EXCLUDED.mobile,
+           gender = EXCLUDED.gender,
            daily_wage = EXCLUDED.daily_wage,
            status = 'active'
-         RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id AS adhar_id, name AS worker_name, contractor_id AS job_cd, category AS worker_skill, category AS worker_desig, mobile, daily_wage`,
-        [workerId, name, category, contractorId, mobile, dailyWage]
+         RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id AS adhar_id, name AS worker_name, contractor_id AS job_cd, supervisor_id, category AS worker_skill, category AS worker_desig, COALESCE(gender, '-') AS worker_gender, mobile, daily_wage`,
+        [workerId, name, category, contractorId, supervisorId, mobile, gender, dailyWage]
       );
-      imported.push(result.rows[0]);
+      imported.push({ ...result.rows[0], present, absent, overtime });
     }
     res.json({ message: "Workers imported successfully", workers: imported });
   } catch (err) {
@@ -568,8 +908,9 @@ const clearData = async (req, res) => {
     return res.status(401).json({ message: "No session ID provided. Unauthorized access." });
   }
 
+  const client = await pool.connect();
   try {
-    const sessionResult = await pool.query(
+    const sessionResult = await client.query(
       "SELECT role FROM login_sessions WHERE id = $1 AND status = 'active'",
       [sessionId]
     );
@@ -578,24 +919,44 @@ const clearData = async (req, res) => {
       return res.status(403).json({ message: "Invalid or expired session. Please log in again." });
     }
 
-    const userRole = sessionResult.rows[0].role;
-    if (userRole !== "Admin") {
+    const userRole = String(sessionResult.rows[0].role || "").toLowerCase();
+    if (userRole !== "admin") {
       return res.status(403).json({ message: "Access denied. Only Admins can wipe database data." });
     }
 
-    // Safely truncate/delete uploaded records
-    await pool.query("TRUNCATE TABLE attendance CASCADE");
-    await pool.query("TRUNCATE TABLE wage_sheets CASCADE");
-    await pool.query("TRUNCATE TABLE workers CASCADE");
-    await pool.query("TRUNCATE TABLE contractors CASCADE");
-    await pool.query("DELETE FROM employees WHERE emp_id != 'RINL-HR-001'");
-    await pool.query("DELETE FROM login_sessions WHERE emp_id != 'RINL-HR-001'");
-    await pool.query("DELETE FROM login_logs WHERE emp_id != 'RINL-HR-001'");
+    await client.query("BEGIN");
+
+    // Clear uploaded operational data. Keep only the built-in Admin account.
+    await client.query("TRUNCATE TABLE attendance CASCADE");
+    await client.query("TRUNCATE TABLE wage_sheets CASCADE");
+    await client.query("TRUNCATE TABLE workers CASCADE");
+    await client.query("TRUNCATE TABLE supervisors CASCADE");
+    await client.query("TRUNCATE TABLE contractors CASCADE");
+    await client.query("DELETE FROM employees WHERE emp_id != 'RINL-AM-01'");
+    await client.query("DELETE FROM login_sessions WHERE emp_id != 'RINL-AM-01'");
+    await client.query("DELETE FROM login_logs WHERE emp_id != 'RINL-AM-01'");
+    await client.query(`
+      INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password, status)
+      VALUES ('RINL-AM-01', 'RINL-AM-01', 'Admin Manager', 'Admin', '9346431127', 'admin@vizagsteel.com', '1234', 'active')
+      ON CONFLICT (emp_id) DO UPDATE SET
+        rinl_id = EXCLUDED.rinl_id,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role,
+        mobile = EXCLUDED.mobile,
+        email = EXCLUDED.email,
+        password = EXCLUDED.password,
+        status = EXCLUDED.status
+    `);
+
+    await client.query("COMMIT");
 
     res.json({ message: "All uploaded records have been cleared from the database successfully." });
   } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
     console.error(err);
     res.status(500).json({ message: `Failed to wipe database data: ${err.message}` });
+  } finally {
+    client.release();
   }
 };
 
@@ -605,8 +966,13 @@ module.exports = {
   getEngineers,
   createEngineer,
   deleteEngineer,
+  getSupervisors,
+  saveSupervisor,
+  updateSupervisor,
+  deleteSupervisor,
   importUsers,
   importContracts,
+  importSupervisors,
   importWorkers,
   importMuster,
   importWages,

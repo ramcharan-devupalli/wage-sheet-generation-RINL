@@ -1,6 +1,43 @@
 const router = require("express").Router();
 const pool = require("../config/dbConfig");
 
+function compactId(raw) {
+  return String(raw || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function idAliases(raw) {
+  const value = String(raw || "").trim();
+  const compact = compactId(value);
+  const withoutRinlPrefix = value.replace(/^rinl[-_\s]*/i, "");
+  return Array.from(new Set([
+    value.toLowerCase(),
+    withoutRinlPrefix.toLowerCase(),
+    compact,
+    compact.replace(/^rinl/, "")
+  ].filter(Boolean)));
+}
+
+async function resolveEngineerId(rawEngineerId) {
+  const aliases = idAliases(rawEngineerId);
+  if (!aliases.length) return rawEngineerId || null;
+
+  const result = await pool.query(
+    `SELECT COALESCE(rinl_id, emp_id) AS engineer_id
+     FROM employees
+     WHERE LOWER(COALESCE(role, '')) IN ('engineer', 'engineer incharge', 'engineer in charge')
+       AND (
+         LOWER(COALESCE(rinl_id, emp_id)) = ANY($1::text[])
+         OR LOWER(emp_id) = ANY($1::text[])
+         OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+         OR LOWER(REGEXP_REPLACE(COALESCE(emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+       )
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  return result.rows[0]?.engineer_id || rawEngineerId || null;
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const {
@@ -22,15 +59,18 @@ router.post("/", async (req, res, next) => {
       return res.status(400).json({ message: "Job code and contractor name are required" });
     }
 
+    const resolvedEngineerId = await resolveEngineerId(engineerId || engineer_id || null);
+
     const result = await pool.query(
-      `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, company)
-       VALUES ($1, $1, $2, $3, $4, $5)
+      `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, company, dept_cd)
+       VALUES ($1, $1, $2, $3, $4, $5, $6)
        ON CONFLICT (contractor_id) DO UPDATE SET
          rinl_id = EXCLUDED.rinl_id,
          engineer_id = EXCLUDED.engineer_id,
          name = EXCLUDED.name,
          mobile = EXCLUDED.mobile,
-         company = EXCLUDED.company
+         company = EXCLUDED.company,
+         dept_cd = EXCLUDED.dept_cd
        RETURNING
          COALESCE(rinl_id, contractor_id) AS rinl_id,
          contractor_id AS job_cd,
@@ -38,21 +78,21 @@ router.post("/", async (req, res, next) => {
          name AS contractor_name,
          mobile AS contractor_phone,
          company AS work_area,
-         $6::text AS contractor_address,
-         $7::text AS party_cd,
-         $8::text AS dept_cd,
+         dept_cd,
+         $7::text AS contractor_address,
+         $8::text AS party_cd,
          $9::text AS job_desc,
          COALESCE($10::date, created_at::date) AS job_start_dt,
          $11::date AS job_end_dt`,
       [
         job_cd,
-        engineerId || engineer_id || null,
+        resolvedEngineerId,
         contractor_name,
         contractor_phone || null,
         work_area || null,
+        dept_cd || null,
         contractor_address || null,
         party_cd || null,
-        dept_cd || null,
         job_desc || null,
         job_start_dt || null,
         job_end_dt || null,
@@ -69,17 +109,17 @@ router.get("/", async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT
-        COALESCE(rinl_id, contractor_id) AS rinl_id,
-        contractor_id AS job_cd,
-        engineer_id,
-        name AS contractor_name,
-        mobile AS contractor_phone,
-        company AS work_area,
-        '-' AS dept_cd,
-        created_at AS job_start_dt,
+        COALESCE(c.rinl_id, c.contractor_id) AS rinl_id,
+        c.contractor_id AS job_cd,
+        c.engineer_id,
+        c.name AS contractor_name,
+        c.mobile AS contractor_phone,
+        c.company AS work_area,
+        COALESCE(c.dept_cd, '-') AS dept_cd,
+        c.created_at AS job_start_dt,
         NULL AS job_end_dt
-      FROM contractors
-      ORDER BY created_at DESC
+      FROM contractors c
+      ORDER BY c.created_at DESC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -105,13 +145,16 @@ router.patch("/:job_cd", async (req, res, next) => {
       return res.status(400).json({ message: "Contractor name is required" });
     }
 
+    const resolvedEngineerId = await resolveEngineerId(engineerId || engineer_id || null);
+
     const result = await pool.query(
       `UPDATE contractors
        SET name = $1,
            rinl_id = $5,
            mobile = $2,
            company = $3,
-           engineer_id = $4
+           engineer_id = $4,
+           dept_cd = $6
        WHERE contractor_id = $5
        RETURNING
          COALESCE(rinl_id, contractor_id) AS rinl_id,
@@ -120,14 +163,14 @@ router.patch("/:job_cd", async (req, res, next) => {
          name AS contractor_name,
          mobile AS contractor_phone,
          company AS work_area,
-         $6::text AS dept_cd,
+         COALESCE(dept_cd, '-') AS dept_cd,
          COALESCE($7::date, created_at::date) AS job_start_dt,
          $8::date AS job_end_dt`,
       [
         contractor_name,
         contractor_phone || null,
         work_area || null,
-        engineerId || engineer_id || null,
+        resolvedEngineerId,
         job_cd,
         dept_cd || "-",
         job_start_dt || null,

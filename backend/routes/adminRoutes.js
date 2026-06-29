@@ -7,8 +7,13 @@ const {
   getEngineers,
   createEngineer,
   deleteEngineer,
+  getSupervisors,
+  saveSupervisor,
+  updateSupervisor,
+  deleteSupervisor,
   importUsers,
   importContracts,
+  importSupervisors,
   importWorkers,
   importMuster,
   importWages,
@@ -24,8 +29,13 @@ router.get("/users", getAllUsers);
 router.get("/engineers", getEngineers);
 router.post("/engineers", createEngineer);
 router.delete("/engineers/:id", deleteEngineer);
+router.get("/supervisors", getSupervisors);
+router.post("/supervisors", saveSupervisor);
+router.patch("/supervisors/:id", updateSupervisor);
+router.delete("/supervisors/:id", deleteSupervisor);
 router.post("/import/users", importUsers);
 router.post("/import/contracts", importContracts);
+router.post("/import/supervisors", importSupervisors);
 router.post("/import/workers", importWorkers);
 router.post("/import/muster", importMuster);
 router.post("/import/wages", importWages);

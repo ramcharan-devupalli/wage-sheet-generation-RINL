@@ -51,12 +51,77 @@ function withRinlIds(rows) {
   return rows.map(withRinlId);
 }
 
+function compactId(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function idAliases(value) {
+  const raw = String(value || "").trim();
+  const compact = compactId(raw);
+  const withoutRinlPrefix = raw.replace(/^rinl[-_\s]*/i, "");
+  return Array.from(new Set([
+    raw.toLowerCase(),
+    withoutRinlPrefix.toLowerCase(),
+    compact,
+    compact.replace(/^rinl/, "")
+  ].filter(Boolean)));
+}
+
+async function engineerLookupValues(engineerId) {
+  const aliases = idAliases(engineerId);
+  const engineer = await oneRow(
+    `SELECT rinl_id, emp_id
+     FROM employees
+     WHERE LOWER(COALESCE(rinl_id, emp_id)) = ANY($1::text[])
+        OR LOWER(emp_id) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  return Array.from(new Set([
+    engineerId,
+    engineer?.rinl_id,
+    engineer?.emp_id
+  ].filter(Boolean).flatMap(idAliases)));
+}
+
 async function scopedContractorIdsForEngineer(engineerId) {
+  const aliases = await engineerLookupValues(engineerId);
   const rows = await allRows(
-    "SELECT contractor_id FROM contractors WHERE LOWER(COALESCE(engineer_id, '')) = LOWER($1)",
-    [engineerId]
+    `SELECT contractor_id
+     FROM contractors
+     WHERE LOWER(COALESCE(engineer_id, '')) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(engineer_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])`,
+    [aliases, aliases.map(compactId)]
   );
   return rows.map((row) => row.contractor_id);
+}
+
+async function lookupEntity(table, idColumn, inputId) {
+  const aliases = idAliases(inputId);
+  if (!aliases.length) return { row: null, aliases: [] };
+
+  const row = await oneRow(
+    `SELECT *
+     FROM ${table}
+     WHERE LOWER(COALESCE(rinl_id, ${idColumn}, '')) = ANY($1::text[])
+        OR LOWER(COALESCE(${idColumn}, '')) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, ${idColumn}, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(${idColumn}, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  return {
+    row,
+    aliases: Array.from(new Set([
+      inputId,
+      row?.rinl_id,
+      row?.[idColumn]
+    ].filter(Boolean).flatMap(idAliases)))
+  };
 }
 
 async function workerIdsForContractors(contractorIds) {
@@ -122,6 +187,18 @@ function derivedSupervisorsFromWorkers(workers) {
   return Array.from(byId.values());
 }
 
+function mergeSupervisors(supervisors, workers) {
+  const byId = new Map();
+  supervisors.forEach((supervisor) => {
+    if (!supervisor.supervisor_id) return;
+    byId.set(supervisor.supervisor_id, supervisor);
+  });
+  derivedSupervisorsFromWorkers(workers).forEach((supervisor) => {
+    if (!byId.has(supervisor.supervisor_id)) byId.set(supervisor.supervisor_id, supervisor);
+  });
+  return Array.from(byId.values());
+}
+
 async function adminDashboard() {
   const contractors = await allRows("SELECT * FROM contractors ORDER BY created_at DESC");
   const supervisors = await allRows("SELECT * FROM supervisors ORDER BY created_at DESC");
@@ -136,10 +213,28 @@ async function adminDashboard() {
 }
 
 async function engineerDashboard(engineerId) {
+  const aliases = await engineerLookupValues(engineerId);
   const contractors = await allRows(
-    "SELECT * FROM contractors WHERE LOWER(COALESCE(engineer_id, '')) = LOWER($1) ORDER BY created_at DESC",
-    [engineerId]
+    `SELECT *
+     FROM contractors
+     WHERE LOWER(COALESCE(engineer_id, '')) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(engineer_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+     ORDER BY created_at DESC`,
+    [aliases, aliases.map(compactId)]
   );
+  const diagnostic = contractors.length
+    ? {}
+    : {
+      engineerIdUsed: engineerId,
+      engineerAliases: aliases,
+      noContractorsAssigned: true,
+      existingEngineerIds: await allRows(
+        `SELECT DISTINCT engineer_id
+         FROM contractors
+         WHERE COALESCE(engineer_id, '') <> ''
+         ORDER BY engineer_id`
+      ).then((rows) => rows.map((row) => row.engineer_id))
+    };
   const contractorIds = contractors.map((contractor) => contractor.contractor_id);
   let supervisors = contractorIds.length
     ? await allRows("SELECT * FROM supervisors WHERE contractor_id = ANY($1::text[]) ORDER BY created_at DESC", [contractorIds])
@@ -147,28 +242,57 @@ async function engineerDashboard(engineerId) {
   const workers = contractorIds.length
     ? await allRows("SELECT * FROM workers WHERE contractor_id = ANY($1::text[]) ORDER BY created_at DESC", [contractorIds])
     : [];
-  if (!supervisors.length) supervisors = derivedSupervisorsFromWorkers(workers);
+  supervisors = mergeSupervisors(supervisors, workers);
   const workerIds = workers.map((worker) => worker.worker_id);
   const attendance = await attendanceForWorkers(workerIds);
   const wages = await wagesForWorkers(workerIds);
-  return { roleScope: "engineer", contractors: withRinlIds(contractors), supervisors: withRinlIds(supervisors), workers: withRinlIds(workers), attendance, wages, summary: summarize(workers, attendance, wages, contractors, supervisors) };
+  return { roleScope: "engineer", contractors: withRinlIds(contractors), supervisors: withRinlIds(supervisors), workers: withRinlIds(workers), attendance, wages, summary: summarize(workers, attendance, wages, contractors, supervisors), ...diagnostic };
 }
 
 async function contractorDashboard(contractorId) {
-  const contractor = await oneRow("SELECT * FROM contractors WHERE LOWER(contractor_id) = LOWER($1)", [contractorId]);
-  let supervisors = await allRows("SELECT * FROM supervisors WHERE LOWER(COALESCE(contractor_id, '')) = LOWER($1) ORDER BY created_at DESC", [contractorId]);
-  const workers = await allRows("SELECT * FROM workers WHERE LOWER(COALESCE(contractor_id, '')) = LOWER($1) ORDER BY created_at DESC", [contractorId]);
-  if (!supervisors.length) supervisors = derivedSupervisorsFromWorkers(workers);
+  const { row: contractor, aliases } = await lookupEntity("contractors", "contractor_id", contractorId);
+  const contractorAliases = aliases.map(compactId);
+  let supervisors = aliases.length
+    ? await allRows(
+      `SELECT *
+       FROM supervisors
+       WHERE LOWER(COALESCE(contractor_id, '')) = ANY($1::text[])
+          OR LOWER(REGEXP_REPLACE(COALESCE(contractor_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+       ORDER BY created_at DESC`,
+      [aliases, contractorAliases]
+    )
+    : [];
+  const workers = aliases.length
+    ? await allRows(
+      `SELECT *
+       FROM workers
+       WHERE LOWER(COALESCE(contractor_id, '')) = ANY($1::text[])
+          OR LOWER(REGEXP_REPLACE(COALESCE(contractor_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+       ORDER BY created_at DESC`,
+      [aliases, contractorAliases]
+    )
+    : [];
+  supervisors = mergeSupervisors(supervisors, workers);
   const workerIds = workers.map((worker) => worker.worker_id);
   const attendance = await attendanceForWorkers(workerIds);
   const wages = await wagesForWorkers(workerIds);
-  const leaveRequests = getLeaveRequests().filter((request) => String(request.contractorId || "").toLowerCase() === contractorId.toLowerCase());
+  const leaveRequests = getLeaveRequests().filter((request) => aliases.includes(String(request.contractorId || "").toLowerCase()));
   return { roleScope: "contractor", contractor: withRinlId(contractor), supervisors: withRinlIds(supervisors), workers: withRinlIds(workers), attendance, wages, leaveRequests, summary: summarize(workers, attendance, wages, contractor ? [contractor] : [], supervisors) };
 }
 
 async function supervisorDashboard(supervisorId) {
-  const supervisor = await oneRow("SELECT * FROM supervisors WHERE LOWER(supervisor_id) = LOWER($1)", [supervisorId]);
-  const workers = await allRows("SELECT * FROM workers WHERE LOWER(COALESCE(supervisor_id, '')) = LOWER($1) ORDER BY created_at DESC", [supervisorId]);
+  const { row: supervisor, aliases } = await lookupEntity("supervisors", "supervisor_id", supervisorId);
+  const supervisorAliases = aliases.map(compactId);
+  const workers = aliases.length
+    ? await allRows(
+      `SELECT *
+       FROM workers
+       WHERE LOWER(COALESCE(supervisor_id, '')) = ANY($1::text[])
+          OR LOWER(REGEXP_REPLACE(COALESCE(supervisor_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+       ORDER BY created_at DESC`,
+      [aliases, supervisorAliases]
+    )
+    : [];
   const workerIds = workers.map((worker) => worker.worker_id);
   const attendance = await attendanceForWorkers(workerIds);
   const wages = await wagesForWorkers(workerIds);
@@ -177,14 +301,18 @@ async function supervisorDashboard(supervisorId) {
 }
 
 async function workerDashboard(workerId) {
+  const { aliases } = await lookupEntity("workers", "worker_id", workerId);
   const worker = await oneRow(
     `SELECT w.*, c.name AS contractor_name, s.name AS supervisor_name
      FROM workers w
      LEFT JOIN contractors c ON c.contractor_id = w.contractor_id
      LEFT JOIN supervisors s ON s.supervisor_id = w.supervisor_id
-     WHERE LOWER(w.worker_id) = LOWER($1)
+     WHERE LOWER(COALESCE(w.rinl_id, w.worker_id, '')) = ANY($1::text[])
+        OR LOWER(COALESCE(w.worker_id, '')) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(w.rinl_id, w.worker_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(w.worker_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
      LIMIT 1`,
-    [workerId]
+    [aliases, aliases.map(compactId)]
   );
   const attendance = worker ? await attendanceForWorkers([worker.worker_id]) : [];
   const wages = worker ? await wagesForWorkers([worker.worker_id]) : [];

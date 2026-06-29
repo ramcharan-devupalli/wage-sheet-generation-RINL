@@ -51,6 +51,40 @@ async function resolveWorkerId(req) {
   );
 }
 
+function hasAttendanceSummary(body) {
+  return body.present !== undefined || body.absent !== undefined || body.overtime !== undefined;
+}
+
+async function saveAttendanceSummary(workerId, body) {
+  if (!hasAttendanceSummary(body)) return;
+
+  const present = Math.max(0, Math.floor(Number(body.present || 0)));
+  const absent = Math.max(0, Math.floor(Number(body.absent || 0)));
+  const overtime = Math.max(0, Number(body.overtime || 0));
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  const monthStartText = monthStart.toISOString().slice(0, 10);
+
+  await pool.query(
+    "DELETE FROM attendance WHERE worker_id = $1 AND date >= $2::date AND date < ($2::date + INTERVAL '1 month')",
+    [workerId, monthStartText]
+  );
+
+  for (let index = 0; index < present; index += 1) {
+    await pool.query(
+      "INSERT INTO attendance (worker_id, date, status, overtime_hrs) VALUES ($1, $2::date + ($3::int * INTERVAL '1 day'), 'present', $4)",
+      [workerId, monthStartText, index, index === 0 ? overtime : 0]
+    );
+  }
+
+  for (let index = 0; index < absent; index += 1) {
+    await pool.query(
+      "INSERT INTO attendance (worker_id, date, status, overtime_hrs) VALUES ($1, $2::date + ($3::int * INTERVAL '1 day'), 'absent', 0)",
+      [workerId, monthStartText, present + index]
+    );
+  }
+}
+
 const createWorker = async (req, res, next) => {
   try {
     const {
@@ -65,6 +99,8 @@ const createWorker = async (req, res, next) => {
       worker_skill,
       category,
       worker_desig,
+      worker_gender,
+      gender,
       mobile,
       daily_wage,
     } = req.body;
@@ -78,8 +114,8 @@ const createWorker = async (req, res, next) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, daily_wage)
-       VALUES ($1, $1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, gender, daily_wage)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (worker_id) DO UPDATE SET
          rinl_id = EXCLUDED.rinl_id,
          name = EXCLUDED.name,
@@ -87,6 +123,7 @@ const createWorker = async (req, res, next) => {
          contractor_id = EXCLUDED.contractor_id,
          supervisor_id = EXCLUDED.supervisor_id,
          mobile = EXCLUDED.mobile,
+         gender = EXCLUDED.gender,
          daily_wage = EXCLUDED.daily_wage
        RETURNING
          COALESCE(rinl_id, worker_id) AS rinl_id,
@@ -98,10 +135,20 @@ const createWorker = async (req, res, next) => {
          category AS worker_skill,
          mobile,
          daily_wage,
-         '-' AS worker_gender`,
-      [id, workerName, skill, job_cd || contractor_id || null, supervisorId || supervisor_id || null, mobile || null, Number(daily_wage || 0)]
+         COALESCE(gender, '-') AS worker_gender`,
+      [
+        id,
+        workerName,
+        skill,
+        job_cd || contractor_id || null,
+        supervisorId || supervisor_id || null,
+        mobile || null,
+        worker_gender || gender || null,
+        Number(daily_wage || 0)
+      ]
     );
 
+    await saveAttendanceSummary(id, req.body);
     res.status(201).json({ message: "Worker saved successfully", worker: result.rows[0] });
   } catch (err) {
     next(err);
@@ -112,16 +159,22 @@ const getWorkers = async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT
-        COALESCE(rinl_id, worker_id) AS rinl_id,
-        worker_id AS adhar_id,
-        name AS worker_name,
-        contractor_id AS job_cd,
-        supervisor_id,
-        category AS worker_desig,
-        category AS worker_skill,
-        '-' AS worker_gender
-      FROM workers
-      ORDER BY created_at DESC
+        COALESCE(w.rinl_id, w.worker_id) AS rinl_id,
+        w.worker_id AS adhar_id,
+        w.name AS worker_name,
+        w.contractor_id AS job_cd,
+        w.supervisor_id,
+        w.category AS worker_desig,
+        w.category AS worker_skill,
+        COALESCE(w.gender, '-') AS worker_gender,
+        COALESCE(w.daily_wage, 0) AS daily_wage,
+        COALESCE(SUM(CASE WHEN LOWER(COALESCE(a.status, '')) = 'present' THEN 1 ELSE 0 END), 0) AS present,
+        COALESCE(SUM(CASE WHEN LOWER(COALESCE(a.status, '')) = 'absent' THEN 1 ELSE 0 END), 0) AS absent,
+        COALESCE(SUM(COALESCE(a.overtime_hrs, 0)), 0) AS overtime
+      FROM workers w
+      LEFT JOIN attendance a ON a.worker_id = w.worker_id
+      GROUP BY w.id, w.rinl_id, w.worker_id, w.name, w.contractor_id, w.supervisor_id, w.category, w.gender, w.daily_wage, w.created_at
+      ORDER BY w.created_at DESC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -144,6 +197,8 @@ const updateWorker = async (req, res, next) => {
       worker_skill,
       category,
       worker_desig,
+      worker_gender,
+      gender,
       mobile,
       daily_wage,
       status,
@@ -166,9 +221,10 @@ const updateWorker = async (req, res, next) => {
            supervisor_id = $4,
            category = $5,
            mobile = $6,
-           daily_wage = $7,
-           status = $8
-       WHERE worker_id = $9
+           gender = $7,
+           daily_wage = $8,
+           status = $9
+       WHERE worker_id = $10
        RETURNING
          COALESCE(rinl_id, worker_id) AS rinl_id,
          worker_id AS adhar_id,
@@ -179,7 +235,7 @@ const updateWorker = async (req, res, next) => {
          category AS worker_skill,
          mobile,
          daily_wage,
-         '-' AS worker_gender`,
+         COALESCE(gender, '-') AS worker_gender`,
       [
         workerId,
         workerName,
@@ -187,6 +243,7 @@ const updateWorker = async (req, res, next) => {
         supervisorId || supervisor_id || null,
         skill,
         mobile || null,
+        worker_gender || gender || null,
         Number(daily_wage || 0),
         status || "active",
         id,
@@ -197,6 +254,7 @@ const updateWorker = async (req, res, next) => {
       return res.status(404).json({ message: "Worker not found" });
     }
 
+    await saveAttendanceSummary(workerId, req.body);
     res.json({ message: "Worker updated successfully", worker: result.rows[0] });
   } catch (err) {
     next(err);

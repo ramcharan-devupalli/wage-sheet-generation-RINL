@@ -39,8 +39,12 @@ CREATE TABLE IF NOT EXISTS contractors (
   engineer_id TEXT,
   name TEXT NOT NULL,
   company TEXT,
+  dept_cd TEXT,
   mobile TEXT,
   email TEXT,
+  present NUMERIC(10,2) DEFAULT 0,
+  absent NUMERIC(10,2) DEFAULT 0,
+  overtime NUMERIC(10,2) DEFAULT 0,
   status TEXT DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,6 +70,7 @@ CREATE TABLE IF NOT EXISTS workers (
   contractor_id TEXT,
   supervisor_id TEXT,
   mobile TEXT,
+  gender TEXT,
   daily_wage NUMERIC(10,2) DEFAULT 0,
   status TEXT DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -92,6 +97,7 @@ CREATE TABLE IF NOT EXISTS wage_sheets (
   pf_deduction NUMERIC(12,2) DEFAULT 0,
   esi_deduction NUMERIC(12,2) DEFAULT 0,
   net_wage NUMERIC(12,2) DEFAULT 0,
+  status TEXT DEFAULT 'Generated',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -100,14 +106,19 @@ ALTER TABLE employees
 
 ALTER TABLE contractors
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,
-  ADD COLUMN IF NOT EXISTS engineer_id TEXT;
+  ADD COLUMN IF NOT EXISTS engineer_id TEXT,
+  ADD COLUMN IF NOT EXISTS dept_cd TEXT;
 
 ALTER TABLE supervisors
-  ADD COLUMN IF NOT EXISTS rinl_id TEXT;
+  ADD COLUMN IF NOT EXISTS rinl_id TEXT,
+  ADD COLUMN IF NOT EXISTS present NUMERIC(10,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS absent NUMERIC(10,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS overtime NUMERIC(10,2) DEFAULT 0;
 
 ALTER TABLE workers
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,
-  ADD COLUMN IF NOT EXISTS supervisor_id TEXT;
+  ADD COLUMN IF NOT EXISTS supervisor_id TEXT,
+  ADD COLUMN IF NOT EXISTS gender TEXT;
 
 UPDATE employees SET rinl_id = emp_id WHERE rinl_id IS NULL;
 UPDATE contractors SET rinl_id = contractor_id WHERE rinl_id IS NULL;
@@ -124,3 +135,6 @@ CREATE INDEX IF NOT EXISTS workers_contractor_idx ON workers(contractor_id);
 CREATE INDEX IF NOT EXISTS workers_supervisor_idx ON workers(supervisor_id);
 CREATE INDEX IF NOT EXISTS attendance_worker_idx ON attendance(worker_id);
 CREATE INDEX IF NOT EXISTS wage_sheets_worker_idx ON wage_sheets(worker_id);
+
+-- Migration for existing databases created before wage sheet status tracking.
+ALTER TABLE wage_sheets ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Generated';

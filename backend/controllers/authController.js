@@ -181,12 +181,22 @@ async function isExistingPortalId(empId) {
   return Boolean(existingWorker);
 }
 
-async function generateRinlId() {
-  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+function rinlPrefixForRole(role) {
+  const normalized = normalizeRole(role);
+  if (isAdminRole(normalized)) return 'RINL-AM-';
+  if (isEngineerRole(normalized)) return 'RINL-ENG-';
+  if (isContractorRole(normalized)) return 'RINL-CON-';
+  if (isSupervisorRole(normalized)) return 'RINL-SUP-';
+  if (isWorkerRole(normalized)) return 'RINL-WK-';
+  return 'RINL-USR-';
+}
+
+async function generateRinlId(role) {
+  const prefix = rinlPrefixForRole(role);
 
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const randomPart = Math.floor(1000 + Math.random() * 9000);
-    const candidate = `RINL-${datePart}-${randomPart}`;
+    const candidate = `${prefix}${randomPart}`;
     if (!(await isExistingPortalId(candidate))) return candidate;
   }
 
@@ -333,7 +343,7 @@ async function signup(req, res, next) {
       return res.status(400).json({ success: false, message: 'Passwords do not match.' });
     }
 
-    const generatedEmpId = await generateRinlId();
+    const generatedEmpId = await generateRinlId(cleanRole);
 
     const created = await queryOne(
       `INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password, status)

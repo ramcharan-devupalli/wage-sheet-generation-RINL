@@ -19,8 +19,11 @@ const errorMiddleware = require('./middleware/errorMiddleware');
 const app = express();
 const frontendPath = path.join(__dirname, '..', 'frontend');
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: true,
+  credentials: true,
+}));
+app.use(express.json({ limit: '25mb' }));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
