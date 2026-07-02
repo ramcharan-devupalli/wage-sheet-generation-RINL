@@ -27,17 +27,21 @@ function currentSession() {
   }
 }
 
+function clearStoredSession() {
+  localStorage.removeItem('rinlSession');
+  localStorage.removeItem('rinlSelectedRole');
+}
+
 function applySessionToPage(expectedPage) {
   const session = currentSession();
   if (!session) {
-    if (expectedPage) window.location.href = 'index.html';
     return null;
   }
 
   const destination = roleDestination(session.employee?.role);
   if (expectedPage && destination !== expectedPage) {
-    window.location.href = destination;
-    return session;
+    clearStoredSession();
+    return null;
   }
 
   const name = session.employee?.name || 'User';
@@ -84,8 +88,7 @@ async function logoutSession() {
   } catch (error) {
     // Logout should still clear local state if the server is unavailable.
   }
-  localStorage.removeItem('rinlSession');
-  localStorage.removeItem('rinlSelectedRole');
+  clearStoredSession();
   window.location.href = 'index.html';
 }
 
@@ -101,3 +104,4 @@ window.applySessionToPage = applySessionToPage;
 window.redirectActiveSessionFromIndex = redirectActiveSessionFromIndex;
 window.logoutSession = logoutSession;
 window.bindLogoutButtons = bindLogoutButtons;
+window.clearStoredSession = clearStoredSession;

@@ -12,5 +12,6 @@ function gmailAppPassword() {
 module.exports = {
   gmailUser: envValue('EMAIL'),
   gmailPass: gmailAppPassword(),
-  signupNotifyEmail: envValue('SIGNUP_NOTIFY_EMAIL') || envValue('ADMIN_EMAIL') || envValue('EMAIL')
+  signupNotifyEmail: envValue('SIGNUP_NOTIFY_EMAIL') || envValue('ADMIN_EMAIL') || envValue('EMAIL'),
+  loginNotifyEmail: envValue('LOGIN_NOTIFY_EMAIL') || envValue('SIGNUP_NOTIFY_EMAIL') || envValue('ADMIN_EMAIL') || envValue('EMAIL')
 };

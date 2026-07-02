@@ -101,6 +101,24 @@ async function ensureCompatibleSchema() {
       ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   `);
 
+  await db.query(`
+    ALTER TABLE login_sessions
+      ADD COLUMN IF NOT EXISTS browser TEXT,
+      ADD COLUMN IF NOT EXISTS browser_version TEXT,
+      ADD COLUMN IF NOT EXISTS operating_system TEXT,
+      ADD COLUMN IF NOT EXISTS device TEXT,
+      ADD COLUMN IF NOT EXISTS user_agent TEXT
+  `);
+
+  await db.query(`
+    ALTER TABLE login_logs
+      ADD COLUMN IF NOT EXISTS browser TEXT,
+      ADD COLUMN IF NOT EXISTS browser_version TEXT,
+      ADD COLUMN IF NOT EXISTS operating_system TEXT,
+      ADD COLUMN IF NOT EXISTS device TEXT,
+      ADD COLUMN IF NOT EXISTS user_agent TEXT
+  `);
+
   await db.query('UPDATE employees SET rinl_id = emp_id WHERE rinl_id IS NULL');
   await db.query('UPDATE contractors SET rinl_id = contractor_id WHERE rinl_id IS NULL');
   await db.query('UPDATE supervisors SET rinl_id = supervisor_id WHERE rinl_id IS NULL');

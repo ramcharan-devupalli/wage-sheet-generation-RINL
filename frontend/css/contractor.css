@@ -47,11 +47,11 @@
     .btn.good { border-color: #bbf7d0; color: var(--green); background: #f0fdf4; }
     .file-btn { position: relative; overflow: hidden; }
     .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-    .kpis { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 13px; margin-bottom: 18px; }
-    .kpi { min-height: 112px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); padding: 15px; position: relative; overflow: hidden; }
-    .kpi:before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 4px; background: var(--tone); }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .kpi { min-height: 126px; border: 1px solid var(--line); border-top: 3px solid var(--tone, #0d5ea8); border-radius: 8px; background: #fff; background-image: none; box-shadow: var(--shadow); padding: 22px 22px 18px; position: relative; overflow: hidden; }
+    .kpi:before { content: none; }
     .kpi small { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .66rem; }
-    .kpi strong { display: block; margin-top: 12px; font-size: 1.7rem; line-height: 1; }
+    .kpi strong { display: block; margin-top: 16px; font-size: 1.8rem; line-height: 1; }
     .kpi span { display: block; margin-top: 8px; color: var(--muted); font-size: .8rem; }
     .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(315px, .55fr); gap: 18px; align-items: start; }
     .stack { display: grid; gap: 18px; }
@@ -59,6 +59,11 @@
     .panel-head { min-height: 60px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); background: #fbfdff; }
     .panel-head h3 { margin: 0; font-size: 1rem; }
     .panel-head span { color: var(--muted); font-size: .78rem; display: block; margin-top: 3px; }
+    #dashboardModulesPanel .panel-head { display: none; }
+    .dashboard-overview { min-height: 235px; padding: 18px 16px; background: #fff; }
+    .dashboard-overview h3 { margin: 0 0 14px; color: #102544; font-size: 1rem; font-weight: 800; }
+    .dashboard-overview ul { margin: 0; padding-left: 18px; display: grid; gap: 10px; color: #172033; font-size: .93rem; line-height: 1.35; }
+    .dashboard-overview li { padding-left: 4px; }
     .module-grid { padding: 15px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .module { border: 1px solid #e4ebf2; border-radius: 8px; background: #fff; padding: 13px; min-height: 130px; }
     .module h4 { margin: 0 0 10px; font-size: .95rem; color: #102544; }

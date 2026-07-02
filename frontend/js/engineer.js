@@ -1,4 +1,6 @@
 const contractors = [];
+const scopedSupervisors = [];
+const scopedWorkers = [];
 const categoryData = [];
 const dailyAttendance = [];
 const monthlyAttendance = [];
@@ -17,13 +19,48 @@ const reportSummary = {
   pendingWageSheets: 0,
 };
 
-if (typeof applySessionToPage === "function") applySessionToPage("engineerincharge.html");
+const savedSession = typeof applySessionToPage === "function"
+  ? applySessionToPage("engineerincharge.html")
+  : (typeof currentSession === "function" ? currentSession() : null);
 if (typeof bindLogoutButtons === "function") bindLogoutButtons();
+
+const ENGINEER_API_BASES = (() => {
+  const bases = [];
+  if (window.location.protocol !== "file:" && window.location.port === "3000") bases.push("");
+  bases.push("http://localhost:3000", "http://127.0.0.1:3000");
+  return Array.from(new Set(bases));
+})();
+
+function sessionHeaders() {
+  const employee = savedSession?.employee || {};
+  const engineerId = employee.rinl_id || employee.rinlId || employee.empId || employee.emp_id || "";
+  return {
+    "Content-Type": "application/json",
+    "x-employee-id": engineerId,
+    "x-role": employee.role || "Engineer Incharge"
+  };
+}
+
+async function fetchEngineerApi(path, options = {}) {
+  let lastError = null;
+
+  for (const base of ENGINEER_API_BASES) {
+    try {
+      const response = await fetch(`${base}${path}`, options);
+      return { response, base };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Backend server is not reachable.");
+}
 
 let activeSection = "overview";
 let activeRemarksContractor = "";
 let activeWageSubmissionId = "";
 let uploadedRows = [];
+let globalSearchText = "";
 
 function readLocalWageSubmissions() {
   try {
@@ -87,6 +124,24 @@ function emptyTable(colspan, message = "No data loaded. Upload a file to populat
   return `<tr><td colspan="${colspan}">${message}</td></tr>`;
 }
 
+function esc(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function matchesGlobalSearch(row) {
+  if (!globalSearchText) return true;
+  return Object.values(row || {}).join(" ").toLowerCase().includes(globalSearchText);
+}
+
+function filterGlobalRows(rows) {
+  return globalSearchText ? rows.filter((row) => matchesGlobalSearch(row)) : rows;
+}
+
 function addAlert(title, text, tone = "#176b87") {
   alerts.unshift({ title, text, tone });
   renderAlerts();
@@ -109,14 +164,35 @@ function addOrUpdateWageSheet(submission) {
   else wageSheets.unshift(record);
 }
 
+function contractorScopeKeys() {
+  return new Set(contractors.flatMap((contractor) => [
+    contractor.id,
+    contractor.rinlId,
+    contractor.name,
+    contractor.department
+  ]).filter(Boolean).map((value) => String(value).trim().toLowerCase()));
+}
+
+function isSubmissionInEngineerScope(submission) {
+  const scopeKeys = contractorScopeKeys();
+  if (!scopeKeys.size) return false;
+  const submissionKeys = [
+    submission.contractor,
+    submission.contractorId,
+    submission.contractor_id,
+    submission.contractNumber
+  ].filter(Boolean).map((value) => String(value).trim().toLowerCase());
+  return submissionKeys.some((key) => scopeKeys.has(key));
+}
+
 function syncSubmittedWageSheets() {
-  readLocalWageSubmissions().forEach((submission) => {
+  readLocalWageSubmissions().filter(isSubmissionInEngineerScope).forEach((submission) => {
     addOrUpdateWageSheet(submission);
     if (!alerts.some((alert) => alert.wageSubmissionId === submission.id)) {
       alerts.unshift({
         title: "Wage sheet submitted",
         text: `${submission.contractor} submitted ${submission.month} wage sheet for engineer review.`,
-        tone: "#b98512",
+        tone: "#f59e0b",
         wageSubmissionId: submission.id,
         contractor: submission.contractor
       });
@@ -366,10 +442,10 @@ function extractDashboardData(rows) {
 
   rows.forEach((row, index) => {
     const contractor = pick(row, ["contractor", "contractor_name", "agency", "vendor"], "Unknown Contractor");
-    const contractorId = pick(row, ["contractor_id", "contract_id", "job_cd", "job_code", "work_order"], contractor);
+    const contractorId = pick(row, ["rinl_id", "rinlId", "contractor_id", "contract_id", "job_cd", "job_code", "work_order"], contractor);
     const department = pick(row, ["department", "dept", "section"], "General");
     const worker = pick(row, ["worker", "worker_name", "name", "employee_name"], `Worker ${index + 1}`);
-    const workerId = pick(row, ["worker_id", "employee_id", "emp_id", "adhar_id", "aadhaar_id", "aadhar_id"], worker);
+    const workerId = pick(row, ["rinl_id", "rinlId", "worker_id", "employee_id", "emp_id", "adhar_id", "aadhaar_id", "aadhar_id"], worker);
     const skill = pick(row, ["category", "skill", "worker_skill", "designation"], "Unskilled");
     const statusText = pick(row, ["status", "attendance_status", "present_absent"], "");
     const presentDays = numeric(row, ["present", "present_days", "days_present", "days", "work_days"], statusText.toLowerCase().includes("present") ? 1 : 0);
@@ -457,7 +533,7 @@ function extractDashboardData(rows) {
   replaceArray(categoryData, Array.from(categoryMap.entries()).map(([label, value], index) => ({
     label,
     value,
-    color: ["#176b87", "#16835f", "#b98512", "#6c5aa8", "#2f67b1", "#c03d3d"][index % 6],
+    color: ["#147dff", "#10a4a6", "#f59e0b", "#7c3cff", "#5fb0ff", "#ff2f8a"][index % 6],
   })));
   replaceArray(dailyAttendance, Array.from(dateMap.entries()).slice(-7).map(([label, value]) => ({ label, value })));
   replaceArray(monthlyAttendance, Array.from(monthMap.entries()).slice(-6).map(([label, item]) => ({
@@ -536,6 +612,7 @@ async function handleDocumentUpload(file) {
 
 function renderMetrics() {
   const totalWorkers = contractors.reduce((sum, item) => sum + item.workers, 0);
+  const totalSupervisors = scopedSupervisors.length || contractors.reduce((sum, item) => sum + Number(item.supervisors || 0), 0);
   const presentToday = contractors.reduce((sum, item) => sum + item.present, 0);
   const absentToday = contractors.reduce((sum, item) => sum + item.absent, 0);
   const overtimeWorkers = contractors.reduce((sum, item) => sum + item.overtime, 0);
@@ -543,21 +620,23 @@ function renderMetrics() {
   const complianceIssues = complianceItems.filter((item) => item.tone !== "good").length;
 
   const metrics = [
-    { label: "Total Contractors", value: contractors.length, note: "Active this month", icon: "TC", tone: "#176b87" },
-    { label: "Total Workers", value: totalWorkers, note: "Approved workforce", icon: "TW", tone: "#16835f" },
-    { label: "Present Today", value: presentToday, note: "Across all contractors", icon: "PT", tone: "#2f67b1" },
-    { label: "Absent Today", value: absentToday, note: "Needs verification", icon: "AT", tone: "#c03d3d" },
-    { label: "Overtime Workers", value: overtimeWorkers, note: "Workers with OT entries", icon: "OT", tone: "#b98512" },
-    { label: "Wage Liability", value: formatMoney(wageLiability), note: "Current month", icon: "WL", tone: "#6c5aa8" },
-    { label: "Compliance Issues", value: complianceIssues, note: "Open exceptions", icon: "CI", tone: "#c03d3d" },
-    { label: "Active Work Orders", value: progressItems.length, note: "Tracked packages", icon: "WO", tone: "#176b87" },
+    { label: "Total Contractors", value: contractors.length, note: "Active this month", tone: "#147dff" },
+    { label: "Supervisors", value: totalSupervisors, note: "Under assigned contractors", tone: "#5fb0ff" },
+    { label: "Total Workers", value: totalWorkers, note: "Approved workforce", tone: "#f59e0b" },
+    { label: "Present Today", value: presentToday, note: "Across all contractors", tone: "#10a4a6" },
+    { label: "Absent Today", value: absentToday, note: "Needs verification", tone: "#ff2f8a" },
+    { label: "Overtime Workers", value: overtimeWorkers, note: "Workers with OT entries", tone: "#7c3cff" },
+    { label: "Wage Liability", value: formatMoney(wageLiability), note: "Current month", tone: "#147dff" },
+    { label: "Compliance Issues", value: complianceIssues, note: "Open exceptions", tone: "#ff2f8a" },
   ];
 
   document.getElementById("metricGrid").innerHTML = metrics.map((item) => `
     <article class="metric" style="--tone:${item.tone}">
-      <div class="metric-label"><span>${item.label}</span><span class="metric-icon">${item.icon}</span></div>
-      <div class="metric-value">${item.value}</div>
-      <div class="metric-note">${item.note}</div>
+      <div class="metric-content">
+        <div class="metric-label"><span>${item.label}</span></div>
+        <div class="metric-value">${item.value}</div>
+        <div class="metric-note">${item.note}</div>
+      </div>
     </article>
   `).join("");
 }
@@ -583,32 +662,31 @@ function renderReportRows(targetId, rows) {
 }
 
 function getTopExpenseCategory() {
-  if (!categoryData.length) return "Skilled Workers";
+  if (!categoryData.length) return "-";
   return categoryData.reduce((top, item) => item.value > top.value ? item : top, categoryData[0]).label;
 }
 
 function getHighestCostContractor() {
-  if (!wageSheets.length) return "ABC Contractors";
+  if (!wageSheets.length) return "-";
   return wageSheets.reduce((top, item) => Number(item.amount || 0) > Number(top.amount || 0) ? item : top, wageSheets[0]).contractor;
 }
 
 function renderReportSummary() {
-  const hasReportData = contractors.length || wageSheets.length || overtimeItems.length || uploadedRows.length;
-  const totalContractors = reportSummary.totalContractors || contractors.length || 5;
-  const totalWorkers = reportSummary.totalWorkers || contractors.reduce((sum, item) => sum + item.workers, 0) || 575;
-  const totalWageCost = reportSummary.totalWageCost || wageSheets.reduce((sum, item) => sum + item.amount, 0) || 8082000;
-  const totalOtCost = overtimeItems.reduce((sum, item) => sum + Number(item.amount || 0), 0) || 425000;
-  const pendingWageSheets = reportSummary.pendingWageSheets || wageSheets.filter((item) => {
+  const totalContractors = Number(reportSummary.totalContractors || contractors.length || 0);
+  const totalWorkers = Number(reportSummary.totalWorkers || contractors.reduce((sum, item) => sum + Number(item.workers || 0), 0) || 0);
+  const totalWageCost = Number(reportSummary.totalWageCost || 0);
+  const totalOtCost = overtimeItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const pendingWageSheets = Number(reportSummary.pendingWageSheets || wageSheets.filter((item) => {
     const status = String(item.status || "").toLowerCase();
     return !status.includes("approved") && !status.includes("verified") && !status.includes("rejected");
-  }).length || (hasReportData ? 0 : 3);
-  const approvedWageSheets = wageSheets.filter((item) => /approved/i.test(item.status)).length || (hasReportData ? 0 : 10);
+  }).length || 0);
+  const approvedWageSheets = wageSheets.filter((item) => /approved/i.test(item.status)).length;
   const rejectedWageSheets = wageSheets.filter((item) => /rejected/i.test(item.status)).length;
-  const verifiedWageSheets = wageSheets.filter((item) => /verified|approved|rejected/i.test(item.status)).length || (hasReportData ? approvedWageSheets + rejectedWageSheets : 12);
-  const reviewedContractors = contractors.filter((item) => /approved|rejected|verified|uploaded/i.test(item.status)).length || (hasReportData ? contractors.length : 5);
+  const verifiedWageSheets = wageSheets.filter((item) => /verified|approved|rejected/i.test(item.status)).length;
+  const reviewedContractors = contractors.filter((item) => /approved|rejected|verified|uploaded/i.test(item.status)).length;
   const averageWage = totalWorkers ? Math.round(totalWageCost / totalWorkers) : 0;
   const totalOtHours = overtimeItems.reduce((sum, item) => sum + Number(item.hours || 0), 0);
-  const averageOtHours = totalWorkers && totalOtHours ? totalOtHours / totalWorkers : 1.47;
+  const averageOtHours = totalWorkers && totalOtHours ? totalOtHours / totalWorkers : 0;
 
   document.getElementById("reportTotalContractors").textContent = totalContractors;
   document.getElementById("reportTotalWorkers").textContent = totalWorkers;
@@ -676,6 +754,54 @@ function updateSummarySubmitStatus() {
   target.textContent = `${summary.status || "Submitted to Admin"} on ${submittedAt}${summary.adminNote ? ` | Admin note: ${summary.adminNote}` : ""}`;
 }
 
+function renderAssignedHierarchy() {
+  const targets = document.querySelectorAll("[data-hierarchy-list]");
+  if (!targets.length) return;
+
+  if (!contractors.length) {
+    targets.forEach((target) => {
+      target.innerHTML = emptyState("No contractors are assigned to this Engineer In-Charge yet.");
+    });
+    return;
+  }
+
+  const markup = contractors.map((contractor) => {
+    const supervisors = scopedSupervisors.filter((item) => item.contractor_id === contractor.id);
+    const workers = scopedWorkers.filter((item) => item.contractor_id === contractor.id);
+    const supervisorNames = supervisors.length
+      ? supervisors.map((item) => esc(item.name || item.rinl_id || item.supervisor_id)).join(", ")
+      : "No supervisor assigned";
+    const workerNames = workers.slice(0, 5).map((item) => esc(item.name || item.rinl_id || item.worker_id)).join(", ");
+    const extraWorkers = workers.length > 5 ? ` +${workers.length - 5} more` : "";
+
+    return `
+      <article class="hierarchy-card">
+        <div class="hierarchy-main">
+          <div>
+            <h4>${esc(contractor.name)}</h4>
+            <p>${esc(contractor.rinlId || contractor.id || "-")} | ${esc(contractor.department || "Unassigned")}</p>
+          </div>
+          ${badge(contractor.status || "Active")}
+        </div>
+        <div class="hierarchy-stats">
+          <span><strong>${supervisors.length}</strong> Supervisors</span>
+          <span><strong>${workers.length}</strong> Workers</span>
+          <span><strong>${contractor.present || 0}</strong> Present</span>
+          <span><strong>${contractor.overtime || 0}</strong> OT</span>
+        </div>
+        <div class="hierarchy-detail">
+          <div><strong>Supervisors:</strong> ${supervisorNames}</div>
+          <div><strong>Workers:</strong> ${workerNames || "No workers assigned"}${extraWorkers}</div>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  targets.forEach((target) => {
+    target.innerHTML = markup;
+  });
+}
+
 function buildEngineerSummaryPayload() {
   const operationalText = document.getElementById("operationalSummaryInput").value.trim();
   const financialText = document.getElementById("financialSummaryInput").value.trim();
@@ -725,15 +851,17 @@ function submitEngineerSummary(event) {
 function renderContractorRows(targetId) {
   const target = document.getElementById(targetId);
   if (!target) return;
+  const rows = filterGlobalRows(contractors);
 
-  if (!contractors.length) {
-    target.innerHTML = emptyTable(7);
+  if (!rows.length) {
+    target.innerHTML = emptyTable(8, globalSearchText ? "No contractors match your search." : "No data loaded. Upload a file to populate this table.");
     return;
   }
 
-  target.innerHTML = contractors.map((item) => `
+  target.innerHTML = rows.map((item) => `
     <tr>
       <td><strong>${item.name}</strong><br><span class="muted">${item.department}</span></td>
+      <td>${item.supervisors || 0}</td>
       <td>${item.workers}</td>
       <td>${item.present}</td>
       <td>${item.absent}</td>
@@ -750,6 +878,89 @@ function renderContractorRows(targetId) {
       </td>
     </tr>
   `).join("");
+}
+
+function renderSupervisorRows() {
+  const target = document.getElementById("supervisorRows");
+  if (!target) return;
+  const rows = filterGlobalRows(scopedSupervisors);
+
+  if (!rows.length) {
+    target.innerHTML = emptyTable(8, globalSearchText ? "No supervisors match your search." : "No supervisors are assigned under this Engineer In-Charge yet.");
+    return;
+  }
+
+  target.innerHTML = rows.map((supervisor) => {
+    const contractor = contractors.find((item) => item.id === supervisor.contractor_id);
+    const assignedWorkers = scopedWorkers.filter((worker) => worker.supervisor_id === supervisor.supervisor_id);
+    const assignedWorkerIds = new Set(assignedWorkers.map((worker) => worker.worker_id));
+    const presentCount = attendanceItems.filter((row) =>
+      assignedWorkerIds.has(row.worker_id) || assignedWorkerIds.has(row.workerId)
+    ).filter((row) => /present/i.test(row.status || row.attendance || "")).length;
+
+    return `
+      <tr>
+        <td><strong>${esc(supervisor.name || supervisor.supervisor_id || "-")}</strong><br><span class="muted">${esc(supervisor.mobile || supervisor.email || "No contact added")}</span></td>
+        <td>${esc(supervisor.supervisor_id || supervisor.rinl_id || "-")}</td>
+        <td>${esc(supervisor.contractor_id || "-")}</td>
+        <td>${esc(contractor?.name || supervisor.contractor_id || "-")}</td>
+        <td>${assignedWorkers.length}</td>
+        <td>${presentCount}</td>
+        <td>${badge(supervisor.status || "Active")}</td>
+        <td><button class="mini-btn" data-supervisor-workers="${esc(supervisor.supervisor_id || supervisor.rinl_id || "")}">View Details</button></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderSupervisorWorkerDetails(supervisorId) {
+  const supervisor = scopedSupervisors.find((item) =>
+    String(item.supervisor_id || item.rinl_id || "") === String(supervisorId)
+  );
+  if (!supervisor) {
+    showToast("Supervisor details not found.");
+    return;
+  }
+
+  const workers = scopedWorkers.filter((worker) => String(worker.supervisor_id || "") === String(supervisor.supervisor_id || ""));
+  const contractor = contractors.find((item) => item.id === supervisor.contractor_id);
+  document.getElementById("supervisorWorkersTitle").textContent = supervisor.name || supervisor.supervisor_id || "Supervisor Workers";
+  document.getElementById("supervisorWorkersMeta").textContent = `${supervisor.supervisor_id || "-"} | ${contractor?.name || supervisor.contractor_id || "-"} | ${workers.length} worker(s)`;
+  document.getElementById("supervisorWorkersBody").innerHTML = workers.length
+    ? `
+      <div class="table-wrap review-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Worker ID</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Contractor ID</th>
+              <th>Mobile</th>
+              <th>Gender</th>
+              <th>Daily Wage</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${workers.map((worker) => `
+              <tr>
+                <td>${esc(worker.worker_id || worker.rinl_id || "-")}</td>
+                <td>${esc(worker.name || "-")}</td>
+                <td>${esc(worker.category || "-")}</td>
+                <td>${esc(worker.contractor_id || "-")}</td>
+                <td>${esc(worker.mobile || "-")}</td>
+                <td>${esc(worker.gender || "-")}</td>
+                <td>${formatMoney(Number(worker.daily_wage || 0))}</td>
+                <td>${badge(worker.status || "Active")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `
+    : emptyState("No workers are assigned under this supervisor yet.");
+  document.getElementById("supervisorWorkersDialog").showModal();
 }
 
 function renderAlerts() {
@@ -777,75 +988,10 @@ function renderAlerts() {
   document.getElementById("alertRows").innerHTML = markup;
 }
 
-function renderCategoryChart() {
-  if (!categoryData.length) {
-    document.getElementById("categoryDonut").style.background = "#e7eef2";
-    document.getElementById("categoryLegend").innerHTML = emptyState("Upload worker category or skill data to build this chart.");
-    return;
-  }
-
-  const total = categoryData.reduce((sum, item) => sum + item.value, 0);
-  let start = 0;
-  const slices = categoryData.map((item) => {
-    const end = start + (item.value / total) * 360;
-    const slice = `${item.color} ${start}deg ${end}deg`;
-    start = end;
-    return slice;
-  });
-
-  document.getElementById("categoryDonut").style.background = `conic-gradient(${slices.join(",")})`;
-  document.getElementById("categoryLegend").innerHTML = categoryData.map((item) => `
-    <div class="legend-row" style="--tone:${item.color}">
-      <span class="legend-dot"></span>
-      <span>${item.label}</span>
-      <strong>${item.value}</strong>
-    </div>
-  `).join("");
-}
-
-function renderDailyTrend() {
-  if (!dailyAttendance.length) {
-    document.getElementById("dailyTrend").innerHTML = emptyState("Upload attendance dates to build daily trend.");
-    return;
-  }
-
-  const max = Math.max(...dailyAttendance.map((item) => item.value));
-  document.getElementById("dailyTrend").innerHTML = dailyAttendance.map((item) => `
-    <div class="bar-col">
-      <div class="bar" title="${item.value} present" style="height:${Math.max(18, (item.value / max) * 220)}px"></div>
-      <div class="bar-label">${item.label}</div>
-    </div>
-  `).join("");
-}
-
-function renderMonthlyTrend() {
-  if (!monthlyAttendance.length) {
-    document.getElementById("monthlyTrend").innerHTML = emptyState("Upload month or date columns to build monthly trend.");
-    return;
-  }
-
-  const width = 640;
-  const height = 250;
-  const values = monthlyAttendance.map((item) => item.value);
-  const min = Math.min(...values) - 3;
-  const max = Math.max(...values) + 3;
-  const points = monthlyAttendance.map((item, index) => {
-    const x = 30 + (index * (width - 60)) / (monthlyAttendance.length - 1);
-    const y = height - 32 - ((item.value - min) / (max - min)) * (height - 70);
-    return { ...item, x, y };
-  });
-  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-
-  document.getElementById("monthlyTrend").innerHTML = `
-    <svg class="line-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Monthly attendance trend">
-      <path d="${path}" fill="none" stroke="#176b87" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
-      ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="5" fill="#176b87"></circle><text x="${point.x}" y="${height - 6}" text-anchor="middle" font-size="12" fill="#65727f">${point.label}</text><text x="${point.x}" y="${point.y - 12}" text-anchor="middle" font-size="12" font-weight="800" fill="#17212b">${point.value}%</text>`).join("")}
-    </svg>
-  `;
-}
-
 function renderHorizontalBars(targetId, data, valueKey, labelKey, suffix = "") {
   const target = document.getElementById(targetId);
+  if (!target) return;
+
   if (!data.length) {
     target.innerHTML = emptyState();
     return;
@@ -873,7 +1019,8 @@ function renderAttendanceRows() {
   const rows = attendanceItems.filter((item) =>
     (contractor === "all" || item.contractor === contractor) &&
     (department === "all" || item.department === department) &&
-    (!date || item.date === date)
+    (!date || item.date === date) &&
+    matchesGlobalSearch(item)
   );
 
   document.getElementById("attendanceRows").innerHTML = rows.map((item) => `
@@ -886,16 +1033,17 @@ function renderAttendanceRows() {
       <td>${badge(item.match)}</td>
       <td>${badge(item.status)}</td>
     </tr>
-  `).join("") || emptyTable(7, uploadedRows.length ? "No attendance records match the selected filters." : "No attendance data loaded. Upload a file to populate attendance.");
+  `).join("") || emptyTable(7, globalSearchText ? "No attendance records match your search." : uploadedRows.length ? "No attendance records match the selected filters." : "No attendance data loaded. Upload a file to populate attendance.");
 }
 
 function renderWageRows() {
-  if (!wageSheets.length) {
-    document.getElementById("wageRows").innerHTML = emptyTable(6, "No wage data loaded. Upload a file with wage columns to populate approvals.");
+  const rows = filterGlobalRows(wageSheets);
+  if (!rows.length) {
+    document.getElementById("wageRows").innerHTML = emptyTable(6, globalSearchText ? "No wage sheets match your search." : "No wage data loaded. Upload a file with wage columns to populate approvals.");
     return;
   }
 
-  document.getElementById("wageRows").innerHTML = wageSheets.map((item) => `
+  document.getElementById("wageRows").innerHTML = rows.map((item) => `
     <tr>
       <td><strong>${item.contractor}</strong></td>
       <td>${item.month}</td>
@@ -916,14 +1064,15 @@ function renderWageRows() {
 }
 
 function renderOvertime() {
-  if (!overtimeItems.length) {
-    document.getElementById("overtimeRows").innerHTML = emptyTable(5, "No overtime data loaded.");
+  const rows = filterGlobalRows(overtimeItems);
+  if (!rows.length) {
+    document.getElementById("overtimeRows").innerHTML = emptyTable(5, globalSearchText ? "No overtime records match your search." : "No overtime data loaded.");
     renderHorizontalBars("overtimeContractorBars", [], "hours", "contractor", " hrs");
     renderHorizontalBars("topOvertimeBars", [], "hours", "worker", " hrs");
     return;
   }
 
-  document.getElementById("overtimeRows").innerHTML = overtimeItems.map((item) => `
+  document.getElementById("overtimeRows").innerHTML = rows.map((item) => `
     <tr>
       <td>${item.worker}</td>
       <td>${item.contractor}</td>
@@ -942,12 +1091,13 @@ function renderOvertime() {
 }
 
 function renderCompliance() {
-  if (!complianceItems.length) {
-    document.getElementById("complianceGrid").innerHTML = emptyState("No compliance data loaded.");
+  const rows = filterGlobalRows(complianceItems);
+  if (!rows.length) {
+    document.getElementById("complianceGrid").innerHTML = emptyState(globalSearchText ? "No compliance records match your search." : "No compliance data loaded.");
     return;
   }
 
-  document.getElementById("complianceGrid").innerHTML = complianceItems.map((item) => `
+  document.getElementById("complianceGrid").innerHTML = rows.map((item) => `
     <article class="compliance-tile">
       <h4>${item.title}</h4>
       <strong>${item.value}</strong>
@@ -957,13 +1107,14 @@ function renderCompliance() {
 }
 
 function renderProgress() {
-  if (!progressItems.length) {
-    document.getElementById("progressList").innerHTML = emptyState("No project progress data loaded.");
-    document.getElementById("progressRows").innerHTML = emptyTable(4, "No work order progress data loaded.");
+  const rows = filterGlobalRows(progressItems);
+  if (!rows.length) {
+    document.getElementById("progressList").innerHTML = emptyState(globalSearchText ? "No project progress records match your search." : "No project progress data loaded.");
+    document.getElementById("progressRows").innerHTML = emptyTable(4, globalSearchText ? "No work order progress records match your search." : "No work order progress data loaded.");
     return;
   }
 
-  const progressMarkup = progressItems.map((item) => `
+  const progressMarkup = rows.map((item) => `
     <div class="progress-item">
       <div class="progress-meta"><span>${item.workOrder}</span><span>${item.progress}%</span></div>
       <div class="track"><div class="fill" style="--value:${item.progress}%"></div></div>
@@ -971,7 +1122,7 @@ function renderProgress() {
   `).join("");
 
   document.getElementById("progressList").innerHTML = progressMarkup;
-  document.getElementById("progressRows").innerHTML = progressItems.map((item) => `
+  document.getElementById("progressRows").innerHTML = rows.map((item) => `
     <tr>
       <td>${item.workOrder}</td>
       <td>${item.contractor}</td>
@@ -984,7 +1135,9 @@ function renderProgress() {
 function rerenderTables() {
   renderMetrics();
   renderReportSummary();
+  renderAssignedHierarchy();
   renderContractorRows("contractorRowsFull");
+  renderSupervisorRows();
   renderAttendanceRows();
   renderWageRows();
   renderOvertime();
@@ -1147,22 +1300,6 @@ function handleVerificationAction(button) {
   renderAttendanceRows();
 }
 
-function exportReport(button) {
-  const reportName = button.textContent.trim().replace(/\s+/g, "-").toLowerCase();
-  const rows = uploadedRows.length
-    ? uploadedRows
-    : reportName.includes("wage")
-    ? wageSheets
-    : reportName.includes("overtime")
-    ? overtimeItems
-    : reportName.includes("contractor")
-    ? contractors
-    : attendanceItems;
-  const columns = Object.keys(rows[0] || {});
-  downloadCsv(`${reportName || "engineer-report"}.csv`, columns, rows);
-  showToast(`${button.textContent.trim()} downloaded.`);
-}
-
 function bindEvents() {
   document.querySelectorAll(".nav-item, .text-action").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1173,6 +1310,12 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const supervisorWorkersButton = event.target.closest("[data-supervisor-workers]");
+    if (supervisorWorkersButton) {
+      renderSupervisorWorkerDetails(supervisorWorkersButton.dataset.supervisorWorkers);
+      return;
+    }
+
     const wageViewButton = event.target.closest("[data-view-wage-submission]");
     if (wageViewButton) {
       openWageReview(wageViewButton.dataset.viewWageSubmission);
@@ -1196,12 +1339,6 @@ function bindEvents() {
     const verifyButton = event.target.closest(".verify-tile");
     if (verifyButton) {
       handleVerificationAction(verifyButton);
-      return;
-    }
-
-    const reportButton = event.target.closest(".report-grid button");
-    if (reportButton) {
-      exportReport(reportButton);
       return;
     }
 
@@ -1254,13 +1391,11 @@ function bindEvents() {
   });
 
   document.getElementById("globalSearch").addEventListener("input", (event) => {
-    const q = event.target.value.toLowerCase().trim();
-    document.querySelectorAll("tbody tr").forEach((row) => {
-      row.style.display = row.textContent.toLowerCase().includes(q) ? "" : "none";
-    });
+    globalSearchText = event.target.value.toLowerCase().trim();
+    rerenderTables();
   });
 
-  document.getElementById("documentUpload").addEventListener("change", (event) => {
+  document.getElementById("documentUpload")?.addEventListener("change", (event) => {
     handleDocumentUpload(event.target.files[0]);
     event.target.value = "";
   });
@@ -1268,7 +1403,7 @@ function bindEvents() {
   document.getElementById("engineerSummaryForm").addEventListener("submit", submitEngineerSummary);
 
   document.getElementById("refreshBtn").addEventListener("click", () => {
-    renderDashboard();
+    loadEngineerDashboard();
     switchSection(activeSection);
     showToast("Dashboard refreshed.");
   });
@@ -1285,12 +1420,10 @@ function renderDashboard() {
   syncAdminSummaryDecisions();
   renderMetrics();
   renderReportSummary();
+  renderAssignedHierarchy();
   renderContractorRows("contractorRowsFull");
+  renderSupervisorRows();
   renderAlerts();
-  renderCategoryChart();
-  renderDailyTrend();
-  renderMonthlyTrend();
-  renderHorizontalBars("strengthBars", contractors, "workers", "name");
   populateFilters();
   renderAttendanceRows();
   renderWageRows();
@@ -1299,5 +1432,125 @@ function renderDashboard() {
   renderProgress();
 }
 
-renderDashboard();
+function loadScopedEngineerData(data) {
+  const dbContractors = Array.isArray(data.contractors) ? data.contractors : [];
+  const dbSupervisors = Array.isArray(data.supervisors) ? data.supervisors : [];
+  const dbWorkers = Array.isArray(data.workers) ? data.workers : [];
+  const dbAttendance = Array.isArray(data.attendance) ? data.attendance : [];
+  const dbWages = Array.isArray(data.wages) ? data.wages : [];
+
+  replaceArray(scopedSupervisors, dbSupervisors);
+  replaceArray(scopedWorkers, dbWorkers);
+
+  replaceArray(contractors, dbContractors.map((contractor) => {
+    const assignedWorkers = dbWorkers.filter((worker) => worker.contractor_id === contractor.contractor_id);
+    const assignedSupervisors = dbSupervisors.filter((supervisor) => supervisor.contractor_id === contractor.contractor_id);
+    const workerIds = new Set(assignedWorkers.map((worker) => worker.worker_id));
+    const contractorAttendance = dbAttendance.filter((row) => workerIds.has(row.worker_id));
+    return {
+      id: contractor.contractor_id,
+      rinlId: contractor.rinl_id || contractor.contractor_id,
+      name: contractor.name || contractor.contractor_id,
+      supervisors: assignedSupervisors.length,
+      workers: assignedWorkers.length,
+      present: contractorAttendance.filter((row) => /present/i.test(row.status || "")).length,
+      absent: contractorAttendance.filter((row) => /absent/i.test(row.status || "")).length,
+      overtime: contractorAttendance.filter((row) => Number(row.overtime_hrs || 0) > 0).length,
+      status: contractor.status || "Active",
+      department: contractor.company || contractor.contractor_id
+    };
+  }));
+
+  const categoryCounts = new Map();
+  dbWorkers.forEach((worker) => categoryCounts.set(worker.category || "Unassigned", (categoryCounts.get(worker.category || "Unassigned") || 0) + 1));
+  replaceArray(categoryData, Array.from(categoryCounts.entries()).map(([label, value], index) => ({
+    label,
+    value,
+    color: ["#147dff", "#10a4a6", "#f59e0b", "#7c3cff", "#5fb0ff", "#ff2f8a"][index % 6],
+  })));
+
+  replaceArray(attendanceItems, dbAttendance.map((row) => ({
+    worker_id: row.worker_id,
+    contractor: dbWorkers.find((worker) => worker.worker_id === row.worker_id)?.contractor_id || "-",
+    date: String(row.date || "").slice(0, 10),
+    department: dbWorkers.find((worker) => worker.worker_id === row.worker_id)?.category || "General",
+    muster: "Database",
+    attendance: row.status || "-",
+    match: "Scoped",
+    status: row.status || "-"
+  })));
+
+  replaceArray(wageSheets, dbWages.map((row) => ({
+    contractor: row.contractor_id || dbWorkers.find((worker) => worker.worker_id === row.worker_id)?.contractor_id || "-",
+    month: `${row.month || ""} ${row.year || ""}`.trim(),
+    workers: 1,
+    amount: Number(row.net_wage || 0),
+    status: row.status || "Generated",
+    remarks: row.worker_name || row.worker_id || ""
+  })));
+
+  replaceArray(overtimeItems, dbAttendance.filter((row) => Number(row.overtime_hrs || 0) > 0).map((row) => ({
+    worker: row.worker_name || row.worker_id,
+    contractor: dbWorkers.find((worker) => worker.worker_id === row.worker_id)?.contractor_id || "-",
+    hours: Number(row.overtime_hrs || 0),
+    amount: Number(row.overtime_hrs || 0) * 450
+  })));
+
+  replaceArray(complianceItems, [
+    { title: "Scoped Access", value: 1, status: "Active", tone: "good" },
+    { title: "Assigned Contractors", value: contractors.length, status: "Database", tone: "good" }
+  ]);
+
+  const todayMap = new Map();
+  dbAttendance.slice(-7).forEach((row) => {
+    const key = String(row.date || "").slice(0, 10) || "Date";
+    todayMap.set(key, (todayMap.get(key) || 0) + (/present/i.test(row.status || "") ? 1 : 0));
+  });
+  replaceArray(dailyAttendance, Array.from(todayMap.entries()).map(([label, value]) => ({ label, value })));
+
+  reportSummary.totalContractors = contractors.length;
+  reportSummary.totalSupervisors = dbSupervisors.length;
+  reportSummary.totalWorkers = dbWorkers.length;
+  reportSummary.totalWageCost = wageSheets.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  reportSummary.pendingWageSheets = wageSheets.filter((item) => !/approved|verified/i.test(item.status || "")).length;
+}
+
+function engineerAssignmentMessage(data) {
+  if (!data?.noContractorsAssigned) return "";
+
+  const engineerId = data.engineerIdUsed || sessionHeaders()["x-employee-id"] || "this engineer ID";
+  const existingIds = Array.isArray(data.existingEngineerIds) && data.existingEngineerIds.length
+    ? data.existingEngineerIds.join(", ")
+    : "none found";
+
+  return `Your Engineer ID used: "${engineerId}". Contractors in DB with engineer_id set: ${existingIds}. Ask Admin to set engineer_id = "${engineerId}" on the contractors assigned to you.`;
+}
+
+async function loadEngineerDashboard() {
+  try {
+    const { response } = await fetchEngineerApi("/api/rbac/dashboard", {
+      method: "GET",
+      credentials: "include",
+      headers: sessionHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Could not load engineer dashboard");
+    loadScopedEngineerData(data);
+    const assignmentMessage = engineerAssignmentMessage(data);
+    alerts.unshift(assignmentMessage
+      ? { title: "No contractors assigned", text: assignmentMessage, tone: "#c03d3d" }
+      : { title: "Database data loaded", text: "Assigned contractor records loaded from PostgreSQL.", tone: "#16835f" });
+  } catch (error) {
+    console.error(error);
+    alerts.unshift({
+      title: "Database load failed",
+      text: `${error.message || "Could not reach the backend server."} Make sure the backend is running at http://localhost:3000 or http://127.0.0.1:3000, then refresh this page.`,
+      tone: "#c03d3d"
+    });
+  } finally {
+    renderDashboard();
+  }
+}
+
+loadEngineerDashboard();
 bindEvents();

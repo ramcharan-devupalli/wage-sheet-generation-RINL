@@ -11,5 +11,6 @@ module.exports = {
   verifyServiceSid: envValue('TWILIO_VERIFY_SID'),
   phoneNumber: envValue('TWILIO_PHONE_NUMBER') || envValue('TWILIO_FROM_PHONE'),
   messagingServiceSid: envValue('TWILIO_MESSAGING_SERVICE_SID'),
-  signupNotifyPhone: envValue('SIGNUP_NOTIFY_PHONE') || envValue('ADMIN_PHONE') || envValue('OWNER_PHONE')
+  signupNotifyPhone: envValue('SIGNUP_NOTIFY_PHONE') || envValue('ADMIN_PHONE') || envValue('OWNER_PHONE'),
+  loginNotifyPhone: envValue('LOGIN_NOTIFY_PHONE') || envValue('SIGNUP_NOTIFY_PHONE') || envValue('ADMIN_PHONE') || envValue('OWNER_PHONE')
 };

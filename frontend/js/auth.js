@@ -3,22 +3,38 @@ const SERVER_URL = 'http://localhost:3000';
 let otpMethod = 'phone';
 let otpTarget = '';
 let loginContext = {};
+let authMode = 'login';
 let timerInterval = null;
 let resendInterval = null;
 
 function switchMethod(method) {
   otpMethod = method;
-  document.getElementById('phoneField').style.display = method === 'phone' ? 'block' : 'none';
-  document.getElementById('emailField').style.display = method === 'email' ? 'block' : 'none';
+  const phoneField = document.getElementById('phoneField');
+  const emailField = document.getElementById('emailField');
+  phoneField.classList.toggle('hidden', method !== 'phone');
+  emailField.classList.toggle('hidden', method !== 'email');
+  phoneField.style.display = method === 'phone' ? 'block' : 'none';
+  emailField.style.display = method === 'email' ? 'block' : 'none';
   document.getElementById('tabPhone').classList.toggle('active', method === 'phone');
   document.getElementById('tabEmail').classList.toggle('active', method === 'email');
 }
 
 function openLogin() {
   document.getElementById('overlay').classList.add('active');
-  showStep('login');
+  showAuthMode('login');
   const selectedRole = localStorage.getItem('rinlSelectedRole');
   const roleSelect = document.getElementById('empRole');
+  if (selectedRole && roleSelect) {
+    const matchingOption = Array.from(roleSelect.options).find((option) => option.value === selectedRole);
+    if (matchingOption) roleSelect.value = selectedRole;
+  }
+}
+
+function openSignup() {
+  document.getElementById('overlay').classList.add('active');
+  showAuthMode('signup');
+  const selectedRole = localStorage.getItem('rinlSelectedRole');
+  const roleSelect = document.getElementById('signupRole');
   if (selectedRole && roleSelect) {
     const matchingOption = Array.from(roleSelect.options).find((option) => option.value === selectedRole);
     if (matchingOption) roleSelect.value = selectedRole;
@@ -35,21 +51,40 @@ function handleOvClick(event) {
   if (event.target === document.getElementById('overlay')) closeLogin();
 }
 
+function showAuthMode(mode) {
+  authMode = mode;
+  clearInterval(timerInterval);
+  clearInterval(resendInterval);
+  showStep(mode);
+}
+
 function showStep(step) {
   const loginStep = document.getElementById('stepLogin');
+  const signupStep = document.getElementById('stepSignup');
   const otpStep = document.getElementById('stepOtp');
+  const authTabs = document.getElementById('authTabs');
 
   loginStep.classList.toggle('hidden', step !== 'login');
+  signupStep.classList.toggle('hidden', step !== 'signup');
   otpStep.classList.toggle('hidden', step !== 'otp');
   loginStep.style.display = step === 'login' ? 'block' : 'none';
+  signupStep.style.display = step === 'signup' ? 'block' : 'none';
   otpStep.style.display = step === 'otp' ? 'block' : 'none';
   document.getElementById('errBox').classList.remove('show');
+  document.getElementById('signupErr').classList.remove('show');
+  document.getElementById('signupSuccess').classList.add('hidden');
   document.getElementById('errOtp').classList.remove('show');
-  document.getElementById('successOtp').style.display = 'none';
+  document.getElementById('successOtp').classList.add('hidden');
+  document.getElementById('loginTab').classList.toggle('active', step === 'login');
+  document.getElementById('signupTab').classList.toggle('active', step === 'signup');
+  authTabs.style.display = step === 'otp' ? 'none' : 'grid';
 
   if (step === 'login') {
     document.getElementById('modalTitle').textContent = 'RINL Wage Portal';
     document.getElementById('modalSub').textContent = 'Contractor Wage Management System';
+  } else if (step === 'signup') {
+    document.getElementById('modalTitle').textContent = 'Create Account';
+    document.getElementById('modalSub').textContent = 'Store your account in the wage portal database';
   } else {
     document.getElementById('modalTitle').textContent = 'OTP Verification';
     document.getElementById('modalSub').textContent = 'Step 2 of 2 - Verify your identity';
@@ -69,6 +104,78 @@ function showError(elementId, message) {
   element.classList.add('show');
 }
 
+async function doSignup() {
+  const name = document.getElementById('signupName').value.trim();
+  const role = document.getElementById('signupRole').value;
+  const mobile = document.getElementById('signupMobile').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPwd').value;
+  const confirmPassword = document.getElementById('signupConfirmPwd').value;
+
+  if (!name || !role || !mobile || !password || !confirmPassword) {
+    showError('signupErr', 'Please fill in all required signup fields.');
+    return;
+  }
+
+  if (!/^\d{10}$/.test(mobile)) {
+    showError('signupErr', 'Please enter a valid 10-digit mobile number.');
+    return;
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showError('signupErr', 'Please enter a valid email address.');
+    return;
+  }
+
+  if (password.length < 4) {
+    showError('signupErr', 'Password must be at least 4 characters.');
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    showError('signupErr', 'Passwords do not match.');
+    return;
+  }
+
+  const button = document.getElementById('createAccountBtn');
+  button.textContent = 'Creating...';
+  button.disabled = true;
+
+  try {
+    const data = await apiRequest('/signup', {
+      method: 'POST',
+      body: JSON.stringify({ name, role, mobile, email, password, confirmPassword })
+    });
+
+    if (data.success) {
+      document.getElementById('signupErr').classList.remove('show');
+      const success = document.getElementById('signupSuccess');
+      const generatedEmpId = data.employee?.emp_id || data.employee?.empId || '';
+      const notificationParts = [];
+      if (data.notifications?.email?.message) notificationParts.push(`Email: ${data.notifications.email.message}`);
+      if (data.notifications?.sms?.message) notificationParts.push(`SMS: ${data.notifications.sms.message}`);
+      success.textContent = [
+        data.message || `Account created successfully. Your RINL ID is ${generatedEmpId}. Use this ID to log in.`,
+        ...notificationParts
+      ].join(' ');
+      success.classList.remove('hidden');
+      document.getElementById('empId').value = generatedEmpId;
+      document.getElementById('empRole').value = role;
+      document.getElementById('empMobile').value = mobile;
+      document.getElementById('empEmail').value = email;
+      localStorage.setItem('rinlSelectedRole', role);
+      setTimeout(() => showAuthMode('login'), 1800);
+    } else {
+      showError('signupErr', data.message || 'Unable to create account.');
+    }
+  } catch (err) {
+    showError('signupErr', err.message || 'Cannot connect to server. Make sure server.js is running.');
+  } finally {
+    button.textContent = 'Create Account';
+    button.disabled = false;
+  }
+}
+
 function showOtpTarget(value, devOtp) {
   const target = document.getElementById('maskedValue');
   target.textContent = maskOtpTarget(value);
@@ -78,6 +185,7 @@ function showOtpTarget(value, devOtp) {
 }
 
 async function doLogin() {
+  localStorage.removeItem('rinlSession');
   const empId = document.getElementById('empId').value.trim();
   const role = document.getElementById('empRole').value;
   const password = document.getElementById('empPwd').value;
@@ -300,7 +408,7 @@ async function verifyOtp() {
       };
       document.getElementById('errOtp').classList.remove('show');
       for (let index = 0; index < 6; index += 1) document.getElementById(`otp${index}`).classList.add('success');
-      document.getElementById('successOtp').style.display = 'block';
+      document.getElementById('successOtp').classList.remove('hidden');
       clearInterval(timerInterval);
       clearInterval(resendInterval);
       localStorage.setItem('rinlSession', JSON.stringify({ sessionId: data.sessionId, employee }));

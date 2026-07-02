@@ -20,16 +20,9 @@
         </div>
       </div>
 
-      <section class="profile-card">
-        <div class="avatar" data-session-initials>SV</div>
-        <h3 data-session-name>Supervisor</h3>
-        <p data-session-role>Shift Supervisor</p>
-        <span class="pill">Shop Floor Control</span>
-      </section>
-
       <p class="menu-title">SUPERVISOR WORKFLOW</p>
       <nav class="menu" aria-label="Supervisor dashboard sections">
-        <a href="#overview" class="nav-link active" data-page="overview">Overview<small>Daily KPIs</small></a>
+        <a href="#overview" class="nav-link active" data-page="overview">Dashboard<small>Daily KPIs</small></a>
         <a href="#workforce" class="nav-link" data-page="workforce">Workforce<small>Attendance and areas</small></a>
         <a href="#overtime" class="nav-link" data-page="overtime">Overtime<small>Approve before wages</small></a>
         <a href="#reports" class="nav-link" data-page="reports">Reports<small>Daily progress</small></a>
@@ -61,6 +54,16 @@
         </section>
 
         <section class="grid-2">
+          <section class="dashboard-overview panel">
+            <h2>Dashboard Overview</h2>
+            <ul>
+              <li>Monitor assigned workers and daily shift attendance</li>
+              <li>Track worker allocation, overtime requests, and work areas</li>
+              <li>Submit daily progress reports for contractor and engineer review</li>
+              <li>Report incidents, safety issues, and material shortages</li>
+            </ul>
+          </section>
+
           <article class="panel">
             <div class="panel-head">
               <div>
@@ -74,23 +77,6 @@
               <label>Rolling Mill <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
               <label>Maintenance <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
               <label>Loading Yard <span>0%</span></label><div class="bar"><i style="width:0%"></i></div>
-            </div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <div>
-                <h2>Supervisor Responsibilities</h2>
-                <p>Daily actions before wage calculation.</p>
-              </div>
-            </div>
-            <div class="check-grid">
-              <span>Mark daily attendance</span>
-              <span>Track worker allocation</span>
-              <span>Approve overtime</span>
-              <span>Monitor productivity</span>
-              <span>Submit daily reports</span>
-              <span>Report incidents</span>
             </div>
           </article>
         </section>
@@ -123,7 +109,7 @@
           </div>
         </article>
 
-        <article class="panel">
+        <article class="panel attendance-entry-panel">
           <div class="panel-head">
             <div>
               <h2>Attendance Entry</h2>
@@ -235,13 +221,17 @@
       </section>
 
       <section class="page" id="page-notifications">
-        <section class="cards compact-cards">
-          <article class="metric"><span>Total Alerts</span><strong id="totalAlerts">0</strong><p>Active notifications</p></article>
-          <article class="metric amber"><span>Unread</span><strong id="unreadAlerts">0</strong><p>Needs supervisor review</p></article>
-          <article class="metric red"><span>Critical</span><strong id="criticalAlerts">0</strong><p>High priority items</p></article>
-        </section>
-
         <section class="grid-2">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Leave Requests</h2>
+                <p>Worker leave requests appear here for supervisor approval.</p>
+              </div>
+            </div>
+            <div class="notification-list" id="leaveRequestList"></div>
+          </article>
+
           <article class="panel">
             <div class="panel-head">
               <div>

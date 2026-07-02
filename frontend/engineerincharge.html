@@ -20,7 +20,7 @@
       <nav class="nav" aria-label="Engineer dashboard navigation">
         <button class="nav-item active" data-target="overview">Dashboard</button>
         <button class="nav-item" data-target="contractors">Contractors</button>
-        <button class="nav-item" data-target="analytics">Analytics</button>
+        <button class="nav-item" data-target="supervisors">Supervisors</button>
         <button class="nav-item" data-target="attendance">Attendance</button>
         <button class="nav-item" data-target="wages">Wage Approval</button>
         <button class="nav-item" data-target="overtime">Overtime</button>
@@ -40,9 +40,7 @@
         </div>
         <div class="top-actions">
           <input id="globalSearch" type="search" placeholder="Search contractor, worker, work order..." />
-          <label class="upload-action" for="documentUpload">Upload CSV / XLS / XLSX</label>
-          <input id="documentUpload" class="file-input" type="file" accept=".csv,.xls,.xlsx" />
-          <span class="upload-meta" id="uploadMeta">No file uploaded</span>
+          <span class="upload-meta" id="uploadMeta">Assigned data loads from PostgreSQL</span>
           <button class="primary-action" id="refreshBtn">Refresh</button>
         </div>
       </header>
@@ -50,21 +48,43 @@
       <section class="section active" id="overview">
         <div class="metric-grid" id="metricGrid"></div>
 
-        <div class="dashboard-alerts">
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h3>Alerts & Notifications</h3>
-                <p>Items needing engineer attention.</p>
-              </div>
-              <button class="text-action" data-target="alerts">Review</button>
-            </div>
-            <div class="alert-list" id="overviewAlerts"></div>
+        <div class="overview-row">
+          <section class="dashboard-overview panel">
+            <h3>Dashboard Overview</h3>
+            <ul>
+              <li>Monitor assigned contractors, supervisors, and workers</li>
+              <li>Verify attendance, overtime entries, and wage sheet records</li>
+              <li>Approve or reject contractor wage submissions with remarks</li>
+              <li>Track compliance issues, alerts, and progress updates</li>
+            </ul>
           </section>
+
+          <div class="dashboard-alerts">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Alerts & Notifications</h3>
+                  <p>Items needing engineer attention.</p>
+                </div>
+                <button class="text-action" data-target="alerts">Review</button>
+              </div>
+              <div class="alert-list" id="overviewAlerts"></div>
+            </section>
+          </div>
         </div>
       </section>
 
       <section class="section" id="contractors">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Assigned Hierarchy</h3>
+              <p>Contractors, supervisors, and workers under this Engineer In-Charge.</p>
+            </div>
+          </div>
+          <div class="hierarchy-list" id="assignedHierarchy" data-hierarchy-list></div>
+        </section>
+
         <section class="panel">
           <div class="panel-head">
             <div>
@@ -77,6 +97,7 @@
               <thead>
                 <tr>
                   <th>Contractor</th>
+                  <th>Supervisors</th>
                   <th>Workers</th>
                   <th>Present</th>
                   <th>Absent</th>
@@ -91,51 +112,33 @@
         </section>
       </section>
 
-      <section class="section" id="analytics">
-        <div class="analytics-grid">
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h3>Worker Category Distribution</h3>
-                <p>Supervisors, skilled, semi-skilled, and unskilled workers.</p>
-              </div>
+      <section class="section" id="supervisors">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Supervisor Management</h3>
+              <p>Supervisors assigned under this Engineer In-Charge's contractors.</p>
             </div>
-            <div class="donut-area">
-              <div class="donut" id="categoryDonut"></div>
-              <div class="legend" id="categoryLegend"></div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h3>Daily Attendance Trend</h3>
-                <p>Present headcount across recent work days.</p>
-              </div>
-            </div>
-            <div class="chart-bars" id="dailyTrend"></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h3>Monthly Attendance Trend</h3>
-                <p>Month-wise attendance percentage.</p>
-              </div>
-            </div>
-            <div class="line-chart" id="monthlyTrend"></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h3>Contractor-wise Workforce Strength</h3>
-                <p>Approved workforce strength by contractor.</p>
-              </div>
-            </div>
-            <div class="horizontal-bars" id="strengthBars"></div>
-          </section>
-        </div>
+            <button class="text-action" data-target="contractors">Open Contractors</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Supervisor</th>
+                  <th>supervisor_id</th>
+                  <th>contractor_id</th>
+                  <th>Contractor</th>
+                  <th>Workers</th>
+                  <th>Present</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="supervisorRows"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section class="section" id="attendance">
@@ -209,7 +212,7 @@
       </section>
 
       <section class="section" id="overtime">
-        <div class="split-layout">
+        <div>
           <section class="panel">
             <div class="panel-head">
               <div>
@@ -231,17 +234,6 @@
                 <tbody id="overtimeRows"></tbody>
               </table>
             </div>
-          </section>
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h3>Overtime Charts</h3>
-                <p>Contractor-wise overtime and top overtime workers.</p>
-              </div>
-            </div>
-            <div class="horizontal-bars" id="overtimeContractorBars"></div>
-            <div class="divider"></div>
-            <div class="horizontal-bars compact" id="topOvertimeBars"></div>
           </section>
         </div>
       </section>
@@ -294,13 +286,6 @@
               <button class="secondary-action" data-message="PDF export queued.">PDF</button>
               <button class="secondary-action" data-message="Excel export queued.">Excel</button>
             </div>
-          </div>
-          <div class="report-grid">
-            <button data-message="Attendance report generated.">Attendance Report</button>
-            <button data-message="Wage report generated.">Wage Report</button>
-            <button data-message="Overtime report generated.">Overtime Report</button>
-            <button data-message="Contractor performance report generated.">Contractor Performance Report</button>
-            <button data-message="Monthly summary report generated.">Monthly Summary Report</button>
           </div>
           <div class="report-summary-grid" aria-label="Reports summary">
             <article class="report-summary-card">
@@ -405,8 +390,24 @@
     </form>
   </dialog>
 
+  <dialog class="wage-review-dialog" id="supervisorWorkersDialog">
+    <form method="dialog">
+      <div class="review-head">
+        <div>
+          <h3 id="supervisorWorkersTitle">Supervisor Workers</h3>
+          <p id="supervisorWorkersMeta">Workers assigned under this supervisor.</p>
+        </div>
+        <button value="close" class="secondary-action">Close</button>
+      </div>
+      <div id="supervisorWorkersBody" class="wage-review-body"></div>
+      <div class="dialog-actions">
+        <button value="close" class="primary-action">Close</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="js/session-routing.js"></script>
-  <script src="js/engineer.js"></script>
+  <script src="js/engineer.js?v=20260630-no-analytics-section"></script>
 </body>
 </html>

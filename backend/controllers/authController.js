@@ -4,6 +4,7 @@ const db = require('../config/dbConfig');
 const { generateOtp } = require('../services/otpService');
 const transporter = require('../services/emailService');
 const twilioClient = require('../services/smsService');
+const { UAParser } = require('ua-parser-js');
 
 const otpStore = {};
 
@@ -190,6 +191,37 @@ function emailDeliveryErrorMessage(err) {
   return `Could not send OTP email: ${detail}`;
 }
 
+function firstForwardedIp(value) {
+  return String(value || '').split(',')[0].trim();
+}
+
+function getClientIp(req) {
+  return (
+    firstForwardedIp(req.headers['x-forwarded-for']) ||
+    req.headers['x-real-ip'] ||
+    req.socket?.remoteAddress ||
+    req.ip ||
+    'unknown'
+  );
+}
+
+function getRequestDetails(req) {
+  const userAgent = req.headers['user-agent'] || '';
+  const parser = new UAParser(userAgent);
+  const browser = parser.getBrowser();
+  const os = parser.getOS();
+  const device = parser.getDevice();
+
+  return {
+    ip: getClientIp(req),
+    browser: browser.name || 'Unknown',
+    browserVersion: browser.version || '',
+    operatingSystem: os.name ? [os.name, os.version].filter(Boolean).join(' ') : 'Unknown',
+    device: device.type || device.model || 'Desktop',
+    userAgent
+  };
+}
+
 async function isExistingPortalId(empId) {
   const existingEmployee = await queryOne('SELECT emp_id FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]);
   if (existingEmployee) return true;
@@ -227,6 +259,7 @@ async function generateRinlId(role) {
 }
 
 function signupNotificationText(user, req) {
+  const details = getRequestDetails(req);
   return [
     'New RINL Wage Portal signup',
     `Name: ${user.name}`,
@@ -235,7 +268,10 @@ function signupNotificationText(user, req) {
     `Mobile: ${user.mobile || 'Not provided'}`,
     `Email: ${user.email || 'Not provided'}`,
     `Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
-    `IP: ${req.ip || 'unknown'}`
+    `IP: ${details.ip}`,
+    `Browser: ${details.browser}${details.browserVersion ? ` ${details.browserVersion}` : ''}`,
+    `OS: ${details.operatingSystem}`,
+    `Device: ${details.device}`
   ].join('\n');
 }
 
@@ -249,6 +285,7 @@ function escapeHtml(value) {
 }
 
 function signupNotificationHtml(user, req) {
+  const details = getRequestDetails(req);
   const rows = [
     ['Name', user.name],
     ['ID', user.emp_id],
@@ -256,7 +293,10 @@ function signupNotificationHtml(user, req) {
     ['Mobile', user.mobile || 'Not provided'],
     ['Email', user.email || 'Not provided'],
     ['Time', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
-    ['IP', req.ip || 'unknown']
+    ['IP', details.ip],
+    ['Browser', `${details.browser}${details.browserVersion ? ` ${details.browserVersion}` : ''}`],
+    ['OS', details.operatingSystem],
+    ['Device', details.device]
   ];
 
   const bodyRows = rows.map(([label, value]) => (
@@ -338,6 +378,130 @@ async function notifySignup(user, req) {
   return notifications;
 }
 
+function activityNotificationText(action, user, req, reason = '') {
+  const details = getRequestDetails(req);
+  const title = action === 'LOGIN_FAILED' ? 'Failed RINL Wage Portal login attempt' : 'RINL Wage Portal login';
+  return [
+    title,
+    `User: ${user.name || 'Unknown'}`,
+    `ID: ${user.emp_id || user.rinl_id || 'Unknown'}`,
+    `Role: ${user.role || 'Unknown'}`,
+    reason ? `Reason: ${reason}` : '',
+    `Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+    `IP: ${details.ip}`,
+    `Browser: ${details.browser}${details.browserVersion ? ` ${details.browserVersion}` : ''}`,
+    `OS: ${details.operatingSystem}`,
+    `Device: ${details.device}`
+  ].filter(Boolean).join('\n');
+}
+
+function activityNotificationHtml(action, user, req, reason = '') {
+  const details = getRequestDetails(req);
+  const rows = [
+    ['User', user.name || 'Unknown'],
+    ['ID', user.emp_id || user.rinl_id || 'Unknown'],
+    ['Role', user.role || 'Unknown'],
+    ['Reason', reason || 'Successful login'],
+    ['Time', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
+    ['IP', details.ip],
+    ['Browser', `${details.browser}${details.browserVersion ? ` ${details.browserVersion}` : ''}`],
+    ['OS', details.operatingSystem],
+    ['Device', details.device]
+  ];
+
+  const bodyRows = rows.map(([label, value]) => (
+    `<tr><td style="padding:8px 12px;border:1px solid #dde3ed;font-weight:600;">${escapeHtml(label)}</td><td style="padding:8px 12px;border:1px solid #dde3ed;">${escapeHtml(value)}</td></tr>`
+  )).join('');
+
+  return `
+    <div style="font-family:Arial,sans-serif;color:#1a1a2e;">
+      <h2 style="color:#003f8a;">${escapeHtml(action === 'LOGIN_FAILED' ? 'Failed Login Attempt' : 'New Login')}</h2>
+      <table style="border-collapse:collapse;width:100%;max-width:620px;">${bodyRows}</table>
+    </div>
+  `;
+}
+
+async function notifyLoginActivity(action, user, req, reason = '') {
+  const text = activityNotificationText(action, user, req, reason);
+  const tasks = [];
+
+  if (mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.loginNotifyEmail) {
+    tasks.push({
+      type: 'email',
+      task: transporter.sendMail({
+        from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
+        to: mailConfig.loginNotifyEmail,
+        subject: action === 'LOGIN_FAILED'
+          ? `Failed login attempt: ${user.emp_id || 'unknown'}`
+          : `New login: ${user.name || user.emp_id || 'unknown'} (${user.role || 'Unknown'})`,
+        text,
+        html: activityNotificationHtml(action, user, req, reason)
+      })
+    });
+  }
+
+  if (twilioClient && twilioConfig.loginNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)) {
+    const messageOptions = {
+      to: twilioConfig.loginNotifyPhone,
+      body: text
+    };
+
+    if (twilioConfig.messagingServiceSid) {
+      messageOptions.messagingServiceSid = twilioConfig.messagingServiceSid;
+    } else {
+      messageOptions.from = twilioConfig.phoneNumber;
+    }
+
+    tasks.push({ type: 'sms', task: twilioClient.messages.create(messageOptions) });
+  }
+
+  if (!tasks.length) return;
+
+  const results = await Promise.allSettled(tasks.map((entry) => entry.task));
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`${tasks[index].type.toUpperCase()} login notification failed:`, result.reason?.message || String(result.reason));
+    }
+  });
+}
+
+async function insertLoginLog({ empId, name, role, action, req }) {
+  const details = getRequestDetails(req);
+  await db.query(
+    `INSERT INTO login_logs
+       (emp_id, name, role, action, ip_address, browser, browser_version, operating_system, device, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [
+      empId || 'unknown',
+      name || null,
+      role || 'unknown',
+      action,
+      details.ip,
+      details.browser,
+      details.browserVersion,
+      details.operatingSystem,
+      details.device,
+      details.userAgent
+    ]
+  );
+}
+
+async function recordLoginActivity(payload) {
+  try {
+    await insertLoginLog(payload);
+  } catch (err) {
+    console.error('Login activity log failed:', err.message);
+  }
+}
+
+async function sendLoginActivityNotification(action, user, req, reason = '') {
+  try {
+    await notifyLoginActivity(action, user, req, reason);
+  } catch (err) {
+    console.error('Login activity notification failed:', err.message);
+  }
+}
+
 async function signup(req, res, next) {
   try {
     const { name, role, mobile, email, password, confirmPassword } = req.body;
@@ -376,6 +540,13 @@ async function signup(req, res, next) {
     );
 
     const notifications = await notifySignup(created, req);
+    await recordLoginActivity({
+      empId: created.emp_id,
+      name: created.name,
+      role: created.role,
+      action: 'SIGNUP',
+      req
+    });
 
     return res.status(201).json({
       success: true,
@@ -401,7 +572,18 @@ async function sendOtp(req, res, next) {
     if (empId || password) {
       const loginUser = await getLoginUser(empId, role);
       const validationError = validateLoginUser(loginUser, { password, role, type, value });
-      if (validationError) return res.status(validationError.includes('not active') ? 403 : 400).json({ success: false, message: validationError });
+      if (validationError) {
+        const attemptedUser = loginUser || { emp_id: empId, name: empId, role };
+        await recordLoginActivity({
+          empId: attemptedUser.rinl_id || attemptedUser.emp_id || empId,
+          name: attemptedUser.name || empId,
+          role: attemptedUser.role || role,
+          action: 'LOGIN_FAILED',
+          req
+        });
+        await sendLoginActivityNotification('LOGIN_FAILED', attemptedUser, req, validationError);
+        return res.status(validationError.includes('not active') ? 403 : 400).json({ success: false, message: validationError });
+      }
     }
 
     if (type === 'phone') {
@@ -498,19 +680,27 @@ async function verifyOtp(req, res, next) {
     const loginRole = loginUser ? loginUser.role : (role || 'User');
     const loginName = loginUser ? loginUser.name : empId || value;
     const loginEmpId = loginUser ? (loginUser.rinl_id || loginUser.emp_id) : (empId || value);
+    const details = getRequestDetails(req);
 
     const session = await queryOne(
-      `INSERT INTO login_sessions (emp_id, name, role, ip_address, status)
-       VALUES ($1, $2, $3, $4, 'active')
+      `INSERT INTO login_sessions (emp_id, name, role, ip_address, browser, browser_version, operating_system, device, user_agent, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')
        RETURNING id`,
-      [loginEmpId, loginName, loginRole, req.ip]
+      [
+        loginEmpId,
+        loginName,
+        loginRole,
+        details.ip,
+        details.browser,
+        details.browserVersion,
+        details.operatingSystem,
+        details.device,
+        details.userAgent
+      ]
     );
 
-    await db.query(
-      `INSERT INTO login_logs (emp_id, name, role, action, ip_address)
-       VALUES ($1, $2, $3, 'LOGIN', $4)`,
-      [loginEmpId, loginName, loginRole, req.ip]
-    );
+    await recordLoginActivity({ empId: loginEmpId, name: loginName, role: loginRole, action: 'LOGIN', req });
+    await sendLoginActivityNotification('LOGIN', { emp_id: loginEmpId, name: loginName, role: loginRole }, req);
 
     return res.json({
       success: true,
@@ -535,11 +725,7 @@ async function logout(req, res, next) {
     if (sessionId) {
       await db.query("UPDATE login_sessions SET status = 'inactive', logout_time = CURRENT_TIMESTAMP WHERE id = $1", [sessionId]);
     }
-    await db.query(
-      `INSERT INTO login_logs (emp_id, role, action, ip_address)
-       VALUES ($1, $2, 'LOGOUT', $3)`,
-      [empId || 'unknown', role || 'unknown', req.ip]
-    );
+    await recordLoginActivity({ empId: empId || 'unknown', role: role || 'unknown', action: 'LOGOUT', req });
     return res.json({ success: true });
   } catch (err) {
     next(err);

@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS login_sessions (
   login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   logout_time TIMESTAMP,
   ip_address TEXT,
+  browser TEXT,
+  browser_version TEXT,
+  operating_system TEXT,
+  device TEXT,
+  user_agent TEXT,
   status TEXT DEFAULT 'active'
 );
 
@@ -29,7 +34,12 @@ CREATE TABLE IF NOT EXISTS login_logs (
   role TEXT,
   action TEXT NOT NULL,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  ip_address TEXT
+  ip_address TEXT,
+  browser TEXT,
+  browser_version TEXT,
+  operating_system TEXT,
+  device TEXT,
+  user_agent TEXT
 );
 
 CREATE TABLE IF NOT EXISTS contractors (
@@ -105,6 +115,20 @@ CREATE TABLE IF NOT EXISTS wage_sheets (
 
 ALTER TABLE employees
   ADD COLUMN IF NOT EXISTS rinl_id TEXT;
+
+ALTER TABLE login_sessions
+  ADD COLUMN IF NOT EXISTS browser TEXT,
+  ADD COLUMN IF NOT EXISTS browser_version TEXT,
+  ADD COLUMN IF NOT EXISTS operating_system TEXT,
+  ADD COLUMN IF NOT EXISTS device TEXT,
+  ADD COLUMN IF NOT EXISTS user_agent TEXT;
+
+ALTER TABLE login_logs
+  ADD COLUMN IF NOT EXISTS browser TEXT,
+  ADD COLUMN IF NOT EXISTS browser_version TEXT,
+  ADD COLUMN IF NOT EXISTS operating_system TEXT,
+  ADD COLUMN IF NOT EXISTS device TEXT,
+  ADD COLUMN IF NOT EXISTS user_agent TEXT;
 
 ALTER TABLE contractors
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,

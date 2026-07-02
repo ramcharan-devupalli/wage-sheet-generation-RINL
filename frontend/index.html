@@ -152,6 +152,18 @@
       cursor: pointer;
     }
 
+    .ai-chat-contact {
+      width: 96px;
+      border: 1px solid var(--blue);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--blue);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
     .ai-chat-send:disabled {
       opacity: 0.65;
       cursor: not-allowed;
@@ -210,7 +222,10 @@
         <li><a href="#workforce">Workforce</a></li>
         <li><a href="#contact">Contact</a></li>
       </ul>
-      <button class="btn-login" id="navLoginBtn">Login</button>
+      <div class="nav-auth">
+        <button class="btn-login" id="navLoginBtn">Login</button>
+        <button class="btn-signup" id="navSignupBtn">Sign Up</button>
+      </div>
     </div>
   </nav>
 
@@ -223,6 +238,7 @@
           across skilled, semi-skilled, unskilled workers and supervisors - accurate, automated, and compliant.</p>
         <div class="hero-btns">
           <button class="btn-gold" id="heroLoginBtn"> Access Wage Portal</button>
+          <button class="btn-outline-white" id="heroSignupBtn">Create Account</button>
           <a href="#about" class="btn-outline-white"
             style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">Learn
             More</a>
@@ -306,6 +322,7 @@
           workforce. It serves as a unified portal bridging the gap between contractors, workers, and RINL management.
         </p>
         <button class="btn-login" id="aboutLoginBtn" style="margin-top:0.5rem;">Access the System</button>
+        <button class="btn-signup" id="aboutSignupBtn" style="margin-top:0.5rem;">Create Account</button>
       </div>
       <div class="about-right">
         <div class="about-card">
@@ -426,6 +443,7 @@
       </p>
       <button class="btn-login" style="font-size:15px; padding:12px 30px;" id="ctaLoginBtn">Login to Wage
         Portal</button>
+      <button class="btn-signup" style="font-size:15px; padding:12px 30px;" id="ctaSignupBtn">Sign Up</button>
     </div>
   </section>
 
@@ -485,21 +503,21 @@
         <!-- Team Member 3 -->
         <div class="team-card" id="teamMember3">
           <div class="team-avatar">
-            <img src="assets/srimayi.jpeg" alt="Srimayi Khandavalli" onerror="this.style.display='none'; this.parentNode.innerHTML='SK';">
+            <img src="assets/neelam.jpeg" alt="Neelam Mali" onerror="this.style.display='none'; this.parentNode.innerHTML='SK';">
           </div>
-          <div class="team-name">Srimayi Khandavalli</div>
+          <div class="team-name">Neelam Mali</div>
           <div class="team-role">Frontend Developer</div>
           <div class="team-detail">
             <span class="team-detail-icon">College</span>
-            <span>AU, Vishakapatnam</span>
+            <span>GVPCEW</span>
           </div>
           <div class="team-detail">
             <span class="team-detail-icon">Email</span>
-            <a href="mailto:srimayikhandavilli@gmail.com">srimayikhandavilli@gmail.com</a>
+            <a href="mailto:neelammali2406@gmail.com">neelammali2406@gmail.com</a>
           </div>
           <div class="team-detail">
             <span class="team-detail-icon">Link</span>
-            <a href="https://www.linkedin.com/in/khandavilli-srimayi-bb3501363" target="_blank">LinkedIn Profile</a>
+            <a href="https://www.linkedin.com/in/neelammali2406" target="_blank">LinkedIn Profile</a>
           </div>
         </div>
 
@@ -530,7 +548,7 @@
             <img src="assets/ramcharan.jpeg" alt="Devupalli Ramcharan" onerror="this.style.display='none'; this.parentNode.innerHTML='DR';">
           </div>
           <div class="team-name">Devupalli Ramcharan</div>
-          <div class="team-role">UI/UX Designer</div>
+          <div class="team-role">Backend & Security Engineer</div>
           <div class="team-detail">
             <span class="team-detail-icon">College</span>
             <span>Gayatri Vidya Parishad College of Engineering</span>
@@ -551,7 +569,7 @@
             <img src="assets/sravya.jpeg" alt="Navara Moda Sravya" onerror="this.style.display='none'; this.parentNode.innerHTML='NS';">
           </div>
           <div class="team-name">Navara Moda Sravya</div>
-          <div class="team-role">Database Admin</div>
+          <div class="team-role">Database & Deployment Engineer</div>
           <div class="team-detail">
             <span class="team-detail-icon">College</span>
             <span>GVPCEW</span>
@@ -569,21 +587,21 @@
         <!-- Team Member 7 -->
         <div class="team-card" id="teamMember7">
           <div class="team-avatar">
-            <img src="assets/neelam.jpeg" alt="Neelam Mali" onerror="this.style.display='none'; this.parentNode.innerHTML='NM';">
+            <img src="assets/srimayi.jpeg" alt="Srimayi Khandavalli" onerror="this.style.display='none'; this.parentNode.innerHTML='NM';">
           </div>
-          <div class="team-name">Neelam Mali</div>
-          <div class="team-role">QA &amp; Testing</div>
+          <div class="team-name">Srimayi Khandavalli</div>
+          <div class="team-role">Ai integration Engineer & Testing</div>
           <div class="team-detail">
             <span class="team-detail-icon">College</span>
-            <span>Gayatri Vidya Parishad College Of Engineering For Women</span>
+            <span>AU, Vishakapatnam</span>
           </div>
           <div class="team-detail">
             <span class="team-detail-icon">Email</span>
-            <a href="mailto:neelammali2406@gmail.com">neelammali2406@gmail.com</a>
+            <a href="mailto:srimayikhandavilli@gmail.com">srimayikhandavilli@gmail.com</a>
           </div>
           <div class="team-detail">
             <span class="team-detail-icon">Link</span>
-            <a href="https://www.linkedin.com/in/neelammali2406" target="_blank">LinkedIn Profile</a>
+            <a href="https://www.linkedin.com/in/khandavilli-srimayi-bb3501363" target="_blank">LinkedIn Profile</a>
           </div>
         </div>
 
@@ -634,6 +652,7 @@
       <form class="ai-chat-form" id="aiChatForm">
         <input class="ai-chat-input" id="aiChatInput" type="text" maxlength="1000" autocomplete="off"
           placeholder="Ask about the wage portal..." />
+        <button class="ai-chat-contact" id="aiChatContact" type="button">Contact Us</button>
         <button class="ai-chat-send" id="aiChatSend" type="submit">Send</button>
       </form>
     </div>
@@ -656,13 +675,18 @@
         <button class="modal-close" id="closeLoginBtn"></button>
       </div>
 
+      <div class="auth-tabs" id="authTabs">
+        <button class="auth-tab active" id="loginTab" type="button">Login</button>
+        <button class="auth-tab" id="signupTab" type="button">Sign Up</button>
+      </div>
+
       <div id="stepLogin" class="modal-body">
         <div class="govt-badge">Government of India Enterprise - Secure Login</div>
         <div class="err-box" id="errBox">Please fill in all fields to continue.</div>
         <div class="field">
-          <label class="lbl">Employee / Contractor ID</label>
+          <label class="lbl">RINL ID</label>
           <div class="iw"><span class="ico"></span><input class="inp" type="text" id="empId"
-              placeholder="e.g. RINL-EMP-2024-001" /></div>
+              placeholder="e.g. RINL-ENG-01" /></div>
         </div>
         <div class="field">
           <label class="lbl">Role</label>
@@ -710,6 +734,54 @@
         <button class="signin-btn" id="sendOtpBtn">Send OTP &amp; Continue</button>
       </div>
 
+      <div id="stepSignup" class="modal-body hidden">
+        <div class="govt-badge">Create a secure wage portal account</div>
+        <div class="err-box" id="signupErr">Please fill in all required signup fields.</div>
+        <div class="success-box hidden" id="signupSuccess">Account created successfully. You can now log in.</div>
+        <div class="field">
+          <label class="lbl">Full Name</label>
+          <div class="iw"><span class="ico"></span><input class="inp" type="text" id="signupName"
+              placeholder="Enter your full name" /></div>
+        </div>
+        <div class="field">
+          <label class="lbl">Role</label>
+          <div class="iw"><span class="ico"></span>
+            <select class="sel" id="signupRole">
+              <option value="" disabled selected>Select your role</option>
+              <option>Admin</option>
+              <option>Engineer Incharge</option>
+              <option>Contractor</option>
+              <option>Workers</option>
+              <option>Supervisor</option>
+              <option>Skilled Labor</option>
+              <option>Semi-skilled Labor</option>
+              <option>Unskilled Labor</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Mobile Number</label>
+          <div class="iw"><span class="ico"></span><input class="inp" type="tel" id="signupMobile"
+              placeholder="10-digit mobile number" maxlength="10" /></div>
+        </div>
+        <div class="field">
+          <label class="lbl">Email Address</label>
+          <div class="iw"><span class="ico"></span><input class="inp" type="email" id="signupEmail"
+              placeholder="name@example.com" /></div>
+        </div>
+        <div class="field">
+          <label class="lbl">Password</label>
+          <div class="iw"><span class="ico"></span><input class="inp" type="password" id="signupPwd"
+              placeholder="Create password" /></div>
+        </div>
+        <div class="field">
+          <label class="lbl">Confirm Password</label>
+          <div class="iw"><span class="ico"></span><input class="inp" type="password" id="signupConfirmPwd"
+              placeholder="Confirm password" /></div>
+        </div>
+        <button class="signin-btn" id="createAccountBtn">Create Account</button>
+      </div>
+
       <div id="stepOtp" class="modal-body hidden">
         <div class="otp-info-box">
           <div class="otp-info-icon"></div>
@@ -750,11 +822,12 @@
   <script>    window.addEventListener('load',function(){setTimeout(function(){var w=document.getElementById('welcomeFlash');if(w)w.classList.add('welcome-flash-hide')},3000)});
     document.addEventListener('DOMContentLoaded',function(){
       ['navLoginBtn','heroLoginBtn','aboutLoginBtn','ctaLoginBtn'].forEach(function(id){var e=document.getElementById(id);if(e)e.addEventListener('click',openLogin)});
+      ['navSignupBtn','heroSignupBtn','aboutSignupBtn','ctaSignupBtn'].forEach(function(id){var e=document.getElementById(id);if(e)e.addEventListener('click',openSignup)});
       var g=function(id,fn){var e=document.getElementById(id);if(e)e.addEventListener('click',fn)};
-      g('closeLoginBtn',closeLogin);g('overlay',handleOvClick);g('eyeBtn',togglePwd);g('sendOtpBtn',doLogin);g('verifyBtn',verifyOtp);g('resendBtn',resendOtp);g('backBtn',goBack);g('tabPhone',function(){switchMethod('phone')});g('tabEmail',function(){switchMethod('email')});
+      g('closeLoginBtn',closeLogin);g('overlay',handleOvClick);g('loginTab',function(){showAuthMode('login')});g('signupTab',function(){showAuthMode('signup')});g('eyeBtn',togglePwd);g('sendOtpBtn',doLogin);g('createAccountBtn',doSignup);g('verifyBtn',verifyOtp);g('resendBtn',resendOtp);g('backBtn',goBack);g('tabPhone',function(){switchMethod('phone')});g('tabEmail',function(){switchMethod('email')});
       for(var n=0;n<6;n++){(function(k){var e=document.getElementById('otp'+k);if(e){e.addEventListener('input',function(){otpNext(e,k)});e.addEventListener('keydown',function(v){otpBack(v,k)})}})(n)}
     });
-    (function(){var c=document.getElementById('aiChatbot'),t=document.getElementById('aiChatToggle'),x=document.getElementById('aiChatClose'),f=document.getElementById('aiChatForm'),i=document.getElementById('aiChatInput'),s=document.getElementById('aiChatSend'),m=document.getElementById('aiChatMessages'),h=[];function u(){var o=location.origin||'';return location.protocol==='file:'||o.indexOf(':3000')<0?'http://localhost:3000/api/chatbot':'/api/chatbot'}function a(r,v){var b=document.createElement('div');b.className='ai-chat-msg '+(r==='user'?'user':'bot');b.textContent=v;m.appendChild(b);m.scrollTop=m.scrollHeight}function l(v){s.disabled=v;i.disabled=v;s.textContent=v?'Wait':'Send'}function fb(q){q=q.toLowerCase();if(q.indexOf('login')>-1||q.indexOf('otp')>-1)return'Enter ID, role, password, then choose Mobile or Email OTP.';if(q.indexOf('wage')>-1)return'Wages use attendance, daily wage, overtime, PF and ESI.';if(q.indexOf('attendance')>-1)return'Attendance supports present, absent, half-day and overtime.';if(q.indexOf('role')>-1)return'Roles include Admin, Engineer, Contractor, Workers and labor categories.';return'I can help with login, OTP, roles, attendance and wage sheets.'}t.onclick=function(){c.classList.toggle('open');if(c.classList.contains('open'))i.focus()};x.onclick=function(){c.classList.remove('open')};f.onsubmit=async function(e){e.preventDefault();var q=i.value.trim();if(!q)return;i.value='';a('user',q);h.push({role:'user',text:q});l(true);try{var r=await fetch(u(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,history:h.slice(-8)})}),raw=await r.text(),d=raw?JSON.parse(raw):{};if(!r.ok||!d.success)throw new Error(d.message||'');var z=d.reply||fb(q);a('bot',z);h.push({role:'model',text:z})}catch(e){a('bot',fb(q))}finally{l(false);i.focus()}}})();                   </script>
+    (function(){var c=document.getElementById('aiChatbot'),t=document.getElementById('aiChatToggle'),x=document.getElementById('aiChatClose'),f=document.getElementById('aiChatForm'),i=document.getElementById('aiChatInput'),s=document.getElementById('aiChatSend'),n=document.getElementById('aiChatContact'),m=document.getElementById('aiChatMessages'),h=[];function u(){var o=location.origin||'';return location.protocol==='file:'||o.indexOf(':3000')<0?'http://localhost:3000/api/chatbot':'/api/chatbot'}function a(r,v){var b=document.createElement('div');b.className='ai-chat-msg '+(r==='user'?'user':'bot');b.textContent=v;m.appendChild(b);m.scrollTop=m.scrollHeight}function l(v){s.disabled=v;i.disabled=v;s.textContent=v?'Wait':'Send'}function fb(q){q=q.toLowerCase();if(q.indexOf('contact')>-1||q.indexOf('customer')>-1||q.indexOf('care')>-1||q.indexOf('phone')>-1||q.indexOf('number')>-1)return'RINL customer care number: 0891-2740405';if(q.indexOf('login')>-1||q.indexOf('otp')>-1)return'Enter ID, role, password, then choose Mobile or Email OTP.';if(q.indexOf('wage')>-1)return'Wages use attendance, daily wage, overtime, PF and ESI.';if(q.indexOf('attendance')>-1)return'Attendance supports present, absent, half-day and overtime.';if(q.indexOf('role')>-1)return'Roles include Admin, Engineer, Contractor, Workers and labor categories.';return'I can help with login, OTP, roles, attendance and wage sheets.'}t.onclick=function(){c.classList.toggle('open');if(c.classList.contains('open'))i.focus()};x.onclick=function(){c.classList.remove('open')};n.onclick=function(){c.classList.add('open');a('bot','RINL customer care number: 0891-2740405');i.focus()};f.onsubmit=async function(e){e.preventDefault();var q=i.value.trim();if(!q)return;i.value='';a('user',q);h.push({role:'user',text:q});l(true);try{var r=await fetch(u(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,history:h.slice(-8)})}),raw=await r.text(),d=raw?JSON.parse(raw):{};if(!r.ok||!d.success)throw new Error(d.message||'');var z=d.reply||fb(q);a('bot',z);h.push({role:'model',text:z})}catch(e){a('bot',fb(q))}finally{l(false);i.focus()}}})();                   </script>
 </body>
 
 </html>

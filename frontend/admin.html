@@ -20,7 +20,9 @@
 
     <button class="nav-btn active" data-section="dashboard">Dashboard <span>Home KPIs</span></button>
     <button class="nav-btn" data-section="users">User Management <span>Users - Roles - Status</span></button>
+    <button class="nav-btn" data-section="engineers">Engineer Management <span>EIC Users - Access</span></button>
     <button class="nav-btn" data-section="contracts">Contract Management <span>Contracts - Work Orders</span></button>
+    <button class="nav-btn" data-section="supervisors">Supervisor Management <span>Supervisors - Contractors</span></button>
     <button class="nav-btn" data-section="workers">Worker Management <span>Workers - Skills</span></button>
     <button class="nav-btn" data-section="muster">Monthly Muster <span>Attendance Summary</span></button>
     <button class="nav-btn" data-section="wages">Wage Expenses <span>Payroll Analytics</span></button>
@@ -65,7 +67,9 @@
           <h3>Quick Actions</h3>
           <div class="quick-grid">
             <button data-section="users">View Users</button>
+            <button data-section="engineers">View Engineers</button>
             <button data-section="contracts">View Contracts</button>
+            <button data-section="supervisors">View Supervisors</button>
             <button data-section="workers">View Workers</button>
             <button data-section="wages">Wage Expense</button>
             <button data-section="notifications">View Alerts</button>
@@ -90,11 +94,69 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Action</th>
+              <th>RINL-ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="usersBody"></tbody>
         </table>
+      </div>
+    </section>
+
+    <section id="engineers" class="section">
+      <div class="panel">
+        <h3>Engineer Management</h3>
+        <p class="upload-hint">Create, edit, and delete Engineer In-Charge accounts for dashboard access.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>RINL-ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="engineersBody">
+            <tr><td colspan="7">Loading engineers...</td></tr>
+          </tbody>
+        </table>
+        <div class="sheet-actions">
+          <button type="button" class="add-option-btn" id="openEngineerFormBtn">+ Add Engineer</button>
+        </div>
+        <form class="management-form detail-panel" id="engineerForm" hidden>
+          <div class="detail-panel-title">
+            <h4 id="engineerFormTitle">Add Engineer Details</h4>
+            <p>Enter Engineer In-Charge account details and save access.</p>
+          </div>
+          <label>
+            RINL-ID
+            <input type="text" id="engineerId" placeholder="RINL-ENG-01" required />
+          </label>
+          <label>
+            Name
+            <input type="text" id="engineerName" placeholder="Engineer name" required />
+          </label>
+          <label>
+            Email
+            <input type="email" id="engineerEmail" placeholder="engineer@vizagsteel.com" />
+          </label>
+          <label>
+            Mobile
+            <input type="tel" id="engineerMobile" placeholder="9876543210" />
+          </label>
+          <label>
+            Password
+            <input type="text" id="engineerPassword" value="1234" />
+          </label>
+          <label>
+            Status
+            <select id="engineerStatus">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <div class="form-button-row">
+            <button type="submit">Add / Update</button>
+            <button type="button" class="btn-light" id="resetEngineerFormBtn">Cancel</button>
+          </div>
+        </form>
+        <p id="engineerFormStatus" class="upload-status">Click Add Engineer to enter details.</p>
       </div>
     </section>
 
@@ -104,11 +166,127 @@
         <table>
           <thead>
             <tr>
-              <th>Job Code</th><th>Contractor</th><th>Phone</th><th>Work Area</th><th>Dept</th><th>Period</th>
+              <th>RINL-ID</th><th>contractor_id</th><th>engineer_id</th><th>Contractor</th><th>Phone</th><th>Work Area</th><th>Dept</th><th>Period</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="contractsBody"></tbody>
         </table>
+        <div class="sheet-actions">
+          <button type="button" class="add-option-btn" id="openContractFormBtn">+ Add Contractor</button>
+        </div>
+        <form class="management-form detail-panel" id="contractForm" hidden>
+          <div class="detail-panel-title">
+            <h4 id="contractFormTitle">Add Contractor Details</h4>
+            <p>Enter contractor information and save it to the contract sheet.</p>
+          </div>
+          <label>
+            Job Code
+            <input type="text" id="contractJobCode" placeholder="RINL-CON-01" required />
+          </label>
+          <label>
+            Contractor
+            <input type="text" id="contractName" placeholder="Contractor name" required />
+          </label>
+          <label>
+            Assigned Engineer ID
+            <input type="text" id="contractEngineerId" placeholder="RINL-ENG-01" />
+          </label>
+          <label>
+            Phone
+            <input type="tel" id="contractPhone" placeholder="9876543210" />
+          </label>
+          <label>
+            Work Area
+            <input type="text" id="contractWorkArea" placeholder="Plant area" />
+          </label>
+          <label>
+            Dept
+            <input type="text" id="contractDept" placeholder="Department" />
+          </label>
+          <label>
+            Start Date
+            <input type="date" id="contractStartDate" />
+          </label>
+          <label>
+            End Date
+            <input type="date" id="contractEndDate" />
+          </label>
+          <div class="form-button-row">
+            <button type="submit">Add / Update</button>
+            <button type="button" class="btn-light" id="resetContractFormBtn">Cancel</button>
+          </div>
+        </form>
+        <p id="contractFormStatus" class="upload-status">Click Add Contractor to enter details.</p>
+      </div>
+    </section>
+
+    <section id="supervisors" class="section">
+      <div class="panel">
+        <h3>Supervisor Management</h3>
+        <p class="upload-hint">Create, edit, and assign supervisors to contractors.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>RINL-ID</th><th>supervisor_id</th><th>contractor_id</th><th>Name</th><th>Mobile</th><th>Email</th><th>Status</th><th>Present</th><th>Absent</th><th>Overtime</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="supervisorsBody">
+            <tr><td colspan="11">Loading supervisors...</td></tr>
+          </tbody>
+        </table>
+        <div class="sheet-actions">
+          <button type="button" class="add-option-btn" id="openSupervisorFormBtn">+ Add Supervisor</button>
+        </div>
+        <form class="management-form detail-panel" id="supervisorForm" hidden>
+          <div class="detail-panel-title">
+            <h4 id="supervisorFormTitle">Add Supervisor Details</h4>
+            <p>Enter supervisor information and assign a contractor_id.</p>
+          </div>
+          <label>
+            supervisor_id
+            <input type="text" id="supervisorId" placeholder="RINL-SUP-01" required />
+          </label>
+          <label>
+            contractor_id
+            <input type="text" id="supervisorContractorId" placeholder="RINL-CON-01" />
+          </label>
+          <label>
+            Name
+            <input type="text" id="supervisorName" placeholder="Supervisor name" required />
+          </label>
+          <label>
+            Mobile
+            <input type="tel" id="supervisorMobile" placeholder="9876543210" />
+          </label>
+          <label>
+            Email
+            <input type="email" id="supervisorEmail" placeholder="supervisor@vizagsteel.com" />
+          </label>
+          <label>
+            Status
+            <select id="supervisorStatus">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label>
+            Present
+            <input type="number" id="supervisorPresent" min="0" step="1" placeholder="0" />
+          </label>
+          <label>
+            Absent
+            <input type="number" id="supervisorAbsent" min="0" step="1" placeholder="0" />
+          </label>
+          <label>
+            Overtime
+            <input type="number" id="supervisorOvertime" min="0" step="0.5" placeholder="0" />
+          </label>
+          <div class="form-button-row">
+            <button type="submit">Add / Update</button>
+            <button type="button" class="btn-light" id="resetSupervisorFormBtn">Cancel</button>
+          </div>
+        </form>
+        <p id="supervisorFormStatus" class="upload-status">Click Add Supervisor to enter details.</p>
       </div>
     </section>
 
@@ -118,11 +296,73 @@
         <table>
           <thead>
             <tr>
-              <th>Aadhaar ID</th><th>Name</th><th>Job Code</th><th>Designation</th><th>Skill</th><th>Gender</th>
+              <th>RINL-ID</th><th>Worker ID</th><th>Name</th><th>Mobile</th><th>contractor_id</th><th>supervisor_id</th><th>Designation</th><th>Skill</th><th>Gender</th><th>Present</th><th>Absent</th><th>Overtime</th><th>Daily Wage</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="workersBody"></tbody>
         </table>
+        <div class="sheet-actions">
+          <button type="button" class="add-option-btn" id="openWorkerFormBtn">+ Add Worker</button>
+        </div>
+        <form class="management-form detail-panel" id="workerForm" hidden>
+          <div class="detail-panel-title">
+            <h4 id="workerFormTitle">Add Worker Details</h4>
+            <p>Enter worker information and save it to the worker sheet.</p>
+          </div>
+          <label>
+            Aadhaar / Worker ID
+            <input type="text" id="workerAadhaar" placeholder="RINL-WK-01" required />
+          </label>
+          <label>
+            Name
+            <input type="text" id="workerNameInput" placeholder="Worker name" required />
+          </label>
+          <label>
+            Mobile
+            <input type="tel" id="workerMobile" placeholder="9876543210" maxlength="10" />
+          </label>
+          <label>
+            contractor_id
+            <input type="text" id="workerJobCode" placeholder="RINL-CON-01" />
+          </label>
+          <label>
+            supervisor_id
+            <input type="text" id="workerSupervisorId" placeholder="RINL-SUP-01" />
+          </label>
+          <label>
+            Designation
+            <input type="text" id="workerDesignation" placeholder="Designation" />
+          </label>
+          <label>
+            Skill
+            <input type="text" id="workerSkill" placeholder="Skilled Worker" required />
+          </label>
+          <label>
+            Gender
+            <input type="text" id="workerGender" placeholder="-" />
+          </label>
+          <label>
+            Present
+            <input type="number" id="workerPresent" min="0" step="1" placeholder="0" />
+          </label>
+          <label>
+            Absent
+            <input type="number" id="workerAbsent" min="0" step="1" placeholder="0" />
+          </label>
+          <label>
+            Overtime
+            <input type="number" id="workerOvertime" min="0" step="0.5" placeholder="0" />
+          </label>
+          <label>
+            Daily Wage
+            <input type="number" id="workerDailyWage" min="0" step="0.01" placeholder="0" />
+          </label>
+          <div class="form-button-row">
+            <button type="submit">Add / Update</button>
+            <button type="button" class="btn-light" id="resetWorkerFormBtn">Cancel</button>
+          </div>
+        </form>
+        <p id="workerFormStatus" class="upload-status">Click Add Worker to enter details.</p>
       </div>
     </section>
 
@@ -205,6 +445,7 @@
             <option value="auto">Auto Detect</option>
             <option value="users">Users</option>
             <option value="contracts">Contracts</option>
+            <option value="supervisors">Supervisors</option>
             <option value="workers">Workers</option>
             <option value="muster">Monthly Muster</option>
             <option value="wages">Wage Expenses</option>
@@ -216,19 +457,6 @@
           <input type="file" id="csvUpload" accept=".csv,.xls,.xlsx,text/csv" multiple hidden />
           <button id="clearUploadedDataBtn">Clear Uploaded Data</button>
           <p id="csvUploadStatus" class="upload-status">No CSV uploaded.</p>
-        </div>
-
-        <div class="panel">
-          <h3>Upload Documents</h3>
-          <p class="upload-hint">Attach any type of file for admin reference, including XLS and XLSX files.</p>
-          <label class="drop-zone" id="documentDropZone" for="documentUpload">
-            <strong>Drop documents here</strong>
-            <span>or click to choose any file type</span>
-          </label>
-          <input type="file" id="documentUpload" multiple hidden />
-          <ul id="documentList" class="document-list">
-            <li>No documents uploaded.</li>
-          </ul>
         </div>
       </div>
     </section>
@@ -277,9 +505,52 @@
     </form>
   </dialog>
 
+  <dialog class="review-dialog" id="recordDetailsDialog">
+    <form method="dialog">
+      <div class="review-dialog-head">
+        <div>
+          <h3 id="recordDetailsTitle">Record Details</h3>
+          <p id="recordDetailsMeta">Complete information for the selected record.</p>
+        </div>
+        <button value="close">Close</button>
+      </div>
+      <div class="review-dialog-body" id="recordDetailsBody"></div>
+      <div class="review-dialog-actions">
+        <button value="close">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="review-dialog" id="clearDataConfirmDialog" style="width: min(480px, calc(100vw - 32px));">
+    <form method="dialog" style="padding: 20px;">
+      <div class="review-dialog-head" style="margin-bottom: 12px;">
+        <div>
+          <h3 style="color: #dc2626; font-size: 19px; font-weight: 800;">Wipe Uploaded Data</h3>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 2px;">Confirm permanent database reset</p>
+        </div>
+        <button value="close" type="button" id="closeClearDialogBtn" style="border:0; background:none; cursor:pointer; color:#9ca3af; font-size:14px;">✕</button>
+      </div>
+      <div class="review-dialog-body" style="overflow: visible; display: block; padding: 10px 0;">
+        <div class="warning-box">
+          ⚠️ WARNING: Wiping database data will permanently clear all uploaded employees, contracts, workers, muster, and wage sheet entries. This action is irreversible.
+        </div>
+        <div style="margin-top: 16px;">
+          <label for="confirmDeleteInput" style="display: block; font-weight: 700; color: #374151; font-size: 13px; margin-bottom: 6px;">
+            Type <span style="color: #dc2626; font-family: monospace; font-size: 14px; font-weight: 800;">DELETE</span> to confirm:
+          </label>
+          <input type="text" id="confirmDeleteInput" placeholder="DELETE" style="width: 100%; padding: 10px; border: 1.5px solid #dc2626; border-radius: 8px; margin: 0; box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.05);" />
+        </div>
+      </div>
+      <div class="review-dialog-actions" style="margin-top: 16px;">
+        <button type="button" id="cancelClearDialogBtn" style="padding: 10px 16px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer; font-weight: 700; font-size: 14px;">Cancel</button>
+        <button type="submit" id="confirmClearDialogBtn" class="danger-btn" disabled style="padding: 10px 16px; border: 1px solid #dc2626; border-radius: 8px; background: #dc2626; color: #fff; cursor: pointer; font-weight: 700; font-size: 14px;">Wipe Database Data</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="js/api.js"></script>
   <script src="js/session-routing.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/admin.js?v=20260630-muster-no-autofill"></script>
 </body>
 </html>
