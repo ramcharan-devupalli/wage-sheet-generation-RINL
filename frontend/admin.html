@@ -27,6 +27,7 @@
     <button class="nav-btn" data-section="muster">Monthly Muster <span>Attendance Summary</span></button>
     <button class="nav-btn" data-section="wages">Wage Expenses <span>Payroll Analytics</span></button>
     <button class="nav-btn" data-section="summaryReviews">Summary Reviews <span>EIC Approval Notes</span></button>
+    <button class="nav-btn" data-section="loginActivity">Login Activity <span>Access Audit</span></button>
     <button class="nav-btn" data-section="notifications">Notifications <span>Alerts & Updates</span></button>
     <button class="nav-btn" data-section="uploads">Uploads <span>CSV - Documents</span></button>
     <button class="nav-btn" data-section="settings">Settings <span>Wage Rates</span></button>
@@ -72,6 +73,7 @@
             <button data-section="supervisors">View Supervisors</button>
             <button data-section="workers">View Workers</button>
             <button data-section="wages">Wage Expense</button>
+            <button data-section="loginActivity">Login Activity</button>
             <button data-section="notifications">View Alerts</button>
           </div>
         </div>
@@ -423,6 +425,23 @@
       </div>
     </section>
 
+    <section id="loginActivity" class="section">
+      <div class="panel">
+        <h3>Login Activity</h3>
+        <p class="upload-hint">Recent signup, login, failed-login, and logout events captured from the portal.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>User</th><th>Role</th><th>Action</th><th>Time</th><th>Browser</th><th>OS</th><th>Device</th><th>IP</th>
+            </tr>
+          </thead>
+          <tbody id="loginActivityBody">
+            <tr><td colspan="8">Loading login activity...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section id="notifications" class="section">
       <div class="panel">
         <h3>Notifications & Alerts</h3>
@@ -457,6 +476,25 @@
           <input type="file" id="csvUpload" accept=".csv,.xls,.xlsx,text/csv" multiple hidden />
           <button id="clearUploadedDataBtn">Clear Uploaded Data</button>
           <p id="csvUploadStatus" class="upload-status">No CSV uploaded.</p>
+        </div>
+        <div class="panel">
+          <h3>Download CSV Files</h3>
+          <p class="upload-hint">Export the latest dashboard records as CSV files.</p>
+          <select id="csvDownloadType">
+            <option value="users">Users</option>
+            <option value="engineers">Engineers</option>
+            <option value="contracts">Contracts</option>
+            <option value="supervisors">Supervisors</option>
+            <option value="workers">Workers</option>
+            <option value="muster">Monthly Muster</option>
+            <option value="wages">Wage Expenses</option>
+            <option value="loginActivity">Login Activity</option>
+          </select>
+          <div class="download-actions">
+            <button type="button" id="downloadCsvBtn">Download Selected CSV</button>
+            <button type="button" id="downloadAllCsvBtn">Download All CSVs</button>
+          </div>
+          <p id="csvDownloadStatus" class="upload-status">Choose a file type to download.</p>
         </div>
       </div>
     </section>

@@ -66,7 +66,6 @@ function isWorkerRole(role) {
 
 function otpSuccessResponse(message, otp, options = {}) {
   const response = { success: true, message };
-  if (options.exposeDevOtp && process.env.NODE_ENV !== 'production') response.devOtp = otp;
   return response;
 }
 
@@ -189,6 +188,15 @@ function isValidEmail(value) {
 function emailDeliveryErrorMessage(err) {
   const detail = err?.response || err?.message || 'Unknown Gmail SMTP error.';
   return `Could not send OTP email: ${detail}`;
+}
+
+function withTimeout(promise, ms, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
 function firstForwardedIp(value) {
@@ -494,12 +502,35 @@ async function recordLoginActivity(payload) {
   }
 }
 
-async function sendLoginActivityNotification(action, user, req, reason = '') {
-  try {
-    await notifyLoginActivity(action, user, req, reason);
-  } catch (err) {
+function sendLoginActivityNotification(action, user, req, reason = '') {
+  notifyLoginActivity(action, user, req, reason).catch((err) => {
     console.error('Login activity notification failed:', err.message);
-  }
+  });
+}
+
+function queueSignupNotification(user, req) {
+  const notifications = {
+    email: {
+      attempted: Boolean(mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.signupNotifyEmail),
+      sent: false,
+      message: mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.signupNotifyEmail
+        ? 'Email notification queued.'
+        : 'Email notification not configured. Check EMAIL, EMAIL_PASSWORD, and SIGNUP_NOTIFY_EMAIL.'
+    },
+    sms: {
+      attempted: Boolean(twilioClient && twilioConfig.signupNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)),
+      sent: false,
+      message: twilioClient && twilioConfig.signupNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)
+        ? 'SMS notification queued.'
+        : 'SMS notification not configured.'
+    }
+  };
+
+  notifySignup(user, req).catch((err) => {
+    console.error('Signup notification failed:', err.message);
+  });
+
+  return notifications;
 }
 
 async function signup(req, res, next) {
@@ -539,7 +570,7 @@ async function signup(req, res, next) {
       [generatedEmpId, cleanName, cleanRole, cleanMobile, cleanEmail || null, password]
     );
 
-    const notifications = await notifySignup(created, req);
+    const notifications = queueSignupNotification(created, req);
     await recordLoginActivity({
       empId: created.emp_id,
       name: created.name,
@@ -568,6 +599,9 @@ async function sendOtp(req, res, next) {
     if (!type || !value) {
       return res.status(400).json({ success: false, message: 'Type and value required.' });
     }
+    if (!['phone', 'email'].includes(type)) {
+      return res.status(400).json({ success: false, message: 'OTP type must be phone or email.' });
+    }
 
     if (empId || password) {
       const loginUser = await getLoginUser(empId, role);
@@ -588,20 +622,29 @@ async function sendOtp(req, res, next) {
 
     if (type === 'phone') {
       if (!/^\d{10}$/.test(value)) return res.status(400).json({ success: false, message: 'Enter valid 10-digit mobile.' });
-      if (twilioClient && twilioConfig.verifyServiceSid) {
-        try {
-          await twilioClient.verify.v2.services(twilioConfig.verifyServiceSid).verifications.create({ to: `+91${value}`, channel: 'sms' });
-          return res.json({ success: true, message: 'OTP sent to mobile.' });
-        } catch (smsErr) {
-          console.error('SMS OTP failed:', smsErr.message);
-          if (process.env.NODE_ENV === 'production') throw smsErr;
-        }
+
+      if (!twilioClient || !twilioConfig.verifyServiceSid) {
+        return res.status(500).json({
+          success: false,
+          message: 'Mobile OTP is not configured. Set TWILIO_SID, TWILIO_AUTH_TOKEN, and TWILIO_VERIFY_SID in .env, then restart the backend.'
+        });
       }
 
-      const otp = generateOtp();
-      otpStore[otpStoreKey(type, value)] = { otp, expiresAt: Date.now() + 2 * 60 * 1000 };
-      console.log(`Mobile OTP for ${value}: ${otp}`);
-      return res.json(otpSuccessResponse('OTP generated. SMS is not available, so use the dev OTP shown here.', otp, { exposeDevOtp: true }));
+      try {
+        await withTimeout(
+          twilioClient.verify.v2.services(twilioConfig.verifyServiceSid).verifications.create({ to: `+91${value}`, channel: 'sms' }),
+          10000,
+          'Twilio SMS request timed out. Check Twilio credentials, Verify SID, account balance, and phone number permissions.'
+        );
+        return res.json({ success: true, message: 'OTP sent to mobile.' });
+      } catch (smsErr) {
+        const smsMessage = smsErr.message || smsErr.moreInfo || smsErr.code || 'Unknown Twilio error.';
+        console.error('SMS OTP failed:', smsMessage);
+        return res.status(500).json({
+          success: false,
+          message: `Could not send mobile OTP: ${smsMessage}`
+        });
+      }
     }
 
     const emailValue = String(value || '').trim().toLowerCase();
@@ -619,13 +662,17 @@ async function sendOtp(req, res, next) {
     }
 
     try {
-      await transporter.sendMail({
-        from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-        to: emailValue,
-        subject: 'RINL Wage Portal OTP Verification',
-        text: `Your RINL Wage Portal OTP is ${otp}. It is valid for 2 minutes.`,
-        html: `<p>Your RINL Wage Portal OTP is <strong>${otp}</strong>. It is valid for 2 minutes.</p>`
-      });
+      await withTimeout(
+        transporter.sendMail({
+          from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
+          to: emailValue,
+          subject: 'RINL Wage Portal OTP Verification',
+          text: `Your RINL Wage Portal OTP is ${otp}. It is valid for 2 minutes.`,
+          html: `<p>Your RINL Wage Portal OTP is <strong>${otp}</strong>. It is valid for 2 minutes.</p>`
+        }),
+        10000,
+        'Gmail SMTP request timed out. Check internet/DNS access and Gmail app password settings.'
+      );
       return res.json(otpSuccessResponse('OTP sent to email.', otp));
     } catch (mailErr) {
       console.error('Email send failed:', mailErr.message);

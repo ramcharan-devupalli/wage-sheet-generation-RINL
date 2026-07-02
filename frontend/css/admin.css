@@ -63,6 +63,9 @@ th{background:#eaf3ff;color:#0f4c97;font-weight:800}
 .drop-zone{display:grid;place-items:center;text-align:center;gap:6px;min-height:130px;border:2px dashed #9cc7da;border-radius:12px;background:#f8fcff;color:#102a43;padding:20px;margin:8px 0 14px;cursor:pointer;transition:.18s ease}
 .drop-zone span{color:#6b7280;font-size:13px}
 .drop-zone:hover,.drop-zone.drag-over{border-color:#0f4c97;background:#eaf3ff;box-shadow:0 8px 22px rgba(15,76,151,.12)}
+.download-actions{display:grid;gap:10px;margin-top:4px}
+.download-actions button{background:#0f4c97;color:#fff;border-color:#0f4c97}
+.download-actions button:hover{background:#0b3f7d}
 .document-list{list-style:none;padding:0;margin-top:10px;display:grid;gap:8px}
 .document-list li{border:1px solid #e5e7eb;border-radius:9px;background:#fff;padding:10px 12px;line-height:1.4}
 .document-list strong{display:block;color:#102a43}

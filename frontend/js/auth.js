@@ -11,6 +11,7 @@ function switchMethod(method) {
   otpMethod = method;
   const phoneField = document.getElementById('phoneField');
   const emailField = document.getElementById('emailField');
+  document.getElementById('errBox').classList.remove('show');
   phoneField.classList.toggle('hidden', method !== 'phone');
   emailField.classList.toggle('hidden', method !== 'email');
   phoneField.style.display = method === 'phone' ? 'block' : 'none';
@@ -176,12 +177,9 @@ async function doSignup() {
   }
 }
 
-function showOtpTarget(value, devOtp) {
+function showOtpTarget(value) {
   const target = document.getElementById('maskedValue');
   target.textContent = maskOtpTarget(value);
-  if (devOtp) {
-    target.textContent += ` (Dev OTP: ${devOtp})`;
-  }
 }
 
 async function doLogin() {
@@ -215,6 +213,7 @@ async function doLogin() {
   const button = document.querySelector('#stepLogin .signin-btn');
   button.textContent = 'Sending OTP...';
   button.disabled = true;
+  document.getElementById('errBox').classList.remove('show');
 
   try {
     const data = await apiRequest('/send-otp', {
@@ -223,7 +222,7 @@ async function doLogin() {
     });
 
     if (data.success) {
-      showOtpTarget(value, data.devOtp);
+      showOtpTarget(value);
       clearOtpBoxes();
       showStep('otp');
       startOtpTimer();
@@ -456,7 +455,7 @@ async function resendOtp() {
 
     if (data.success) {
       document.getElementById('errOtp').classList.remove('show');
-      showOtpTarget(otpTarget, data.devOtp);
+      showOtpTarget(otpTarget);
       document.getElementById('otpTimerDisplay').style.color = 'var(--blue)';
       clearOtpBoxes();
       startOtpTimer();

@@ -23,6 +23,10 @@ const csvType = document.getElementById("csvType");
 const csvUpload = document.getElementById("csvUpload");
 const csvUploadStatus = document.getElementById("csvUploadStatus");
 const clearUploadedDataBtn = document.getElementById("clearUploadedDataBtn");
+const csvDownloadType = document.getElementById("csvDownloadType");
+const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+const downloadAllCsvBtn = document.getElementById("downloadAllCsvBtn");
+const csvDownloadStatus = document.getElementById("csvDownloadStatus");
 const documentUpload = document.getElementById("documentUpload");
 const documentList = document.getElementById("documentList");
 const csvDropZone = document.getElementById("csvDropZone");
@@ -68,6 +72,7 @@ let supervisors = [];
 let workers = [];
 let muster = [];
 let wageExpenses = [];
+let loginActivity = [];
 let uploadedDocuments = JSON.parse(localStorage.getItem("adminUploadedDocuments") || "[]");
 let activeSummaryReviewId = "";
 let adminSearchText = "";
@@ -87,6 +92,8 @@ loadExpenseBtn.addEventListener("click", loadExpenseReport);
 csvUpload.addEventListener("change", handleCsvUpload);
 documentUpload?.addEventListener("change", handleDocumentUpload);
 clearUploadedDataBtn.addEventListener("click", clearUploadedData);
+downloadCsvBtn?.addEventListener("click", () => downloadCsv(csvDownloadType.value));
+downloadAllCsvBtn?.addEventListener("click", downloadAllCsvFiles);
 engineerForm?.addEventListener("submit", saveEngineer);
 contractForm?.addEventListener("submit", saveContractor);
 supervisorForm?.addEventListener("submit", saveSupervisor);
@@ -496,6 +503,7 @@ function renderSearchableTables() {
   renderSupervisors();
   renderWorkers();
   renderMuster();
+  renderLoginActivity();
 }
 
 function readEngineerSummaries() {
@@ -978,7 +986,186 @@ function getTableRows(type) {
   if (type === "supervisors") return supervisors;
   if (type === "workers") return workers;
   if (type === "wages") return wageExpenses;
+  if (type === "loginActivity") return loginActivity;
   return muster;
+}
+
+const CSV_EXPORTS = {
+  users: {
+    label: "Users",
+    file: "rinl-users",
+    columns: [
+      ["RINL ID", (row) => row.rinl_id || row.rinlId || row.employee_id || row.emp_id],
+      ["Name", "name"],
+      ["Email", "email"],
+      ["Mobile", "mobile"],
+      ["Role", "role"],
+      ["Status", "status"],
+      ["Created At", "created_at"],
+    ],
+  },
+  engineers: {
+    label: "Engineers",
+    file: "rinl-engineers",
+    columns: [
+      ["RINL ID", (row) => row.rinl_id || row.rinlId || row.employee_id || row.emp_id],
+      ["Name", "name"],
+      ["Email", "email"],
+      ["Mobile", "mobile"],
+      ["Role", "role"],
+      ["Status", "status"],
+      ["Created At", "created_at"],
+    ],
+  },
+  contracts: {
+    label: "Contracts",
+    file: "rinl-contracts",
+    columns: [
+      ["RINL ID", (row) => row.rinl_id || row.contractor_id],
+      ["Contractor ID", "contractor_id"],
+      ["Engineer ID", "engineer_id"],
+      ["Contractor", "name"],
+      ["Company", "company"],
+      ["Mobile", "mobile"],
+      ["Email", "email"],
+      ["Department", (row) => row.dept_cd || row.dept || row.department || row.work_area],
+      ["Start Date", (row) => contractStartDateValue(row)],
+      ["End Date", (row) => contractEndDateValue(row)],
+      ["Status", "status"],
+    ],
+  },
+  supervisors: {
+    label: "Supervisors",
+    file: "rinl-supervisors",
+    columns: [
+      ["RINL ID", (row) => row.rinl_id || row.supervisor_id],
+      ["Supervisor ID", "supervisor_id"],
+      ["Contractor ID", "contractor_id"],
+      ["Name", "name"],
+      ["Mobile", "mobile"],
+      ["Email", "email"],
+      ["Status", "status"],
+      ["Present", "present"],
+      ["Absent", "absent"],
+      ["Overtime", "overtime"],
+    ],
+  },
+  workers: {
+    label: "Workers",
+    file: "rinl-workers",
+    columns: [
+      ["RINL ID", (row) => row.rinl_id || row.worker_id],
+      ["Worker ID", "worker_id"],
+      ["Name", "name"],
+      ["Category", "category"],
+      ["Contractor ID", "contractor_id"],
+      ["Supervisor ID", "supervisor_id"],
+      ["Mobile", "mobile"],
+      ["Gender", "gender"],
+      ["Daily Wage", "daily_wage"],
+      ["Status", "status"],
+    ],
+  },
+  muster: {
+    label: "Monthly Muster",
+    file: "rinl-muster",
+    columns: [
+      ["Worker ID", "worker_id"],
+      ["Date", "date"],
+      ["Status", "status"],
+      ["Overtime Hours", (row) => row.overtime_hrs || row.overtime],
+      ["Created At", "created_at"],
+    ],
+  },
+  wages: {
+    label: "Wage Expenses",
+    file: "rinl-wage-expenses",
+    columns: [
+      ["Worker ID", "worker_id"],
+      ["Worker Name", "worker_name"],
+      ["Contractor ID", "contractor_id"],
+      ["Supervisor ID", "supervisor_id"],
+      ["Month", (row) => row.wage_month || row.muster_month || row.month],
+      ["Present Days", (row) => row.days_present || row.present_days || row.present],
+      ["Daily Wage", "daily_wage"],
+      ["Wage Expense", (row) => row.wage_expense || row.total_expense || row.gross_wage || row.net_wage],
+    ],
+  },
+  loginActivity: {
+    label: "Login Activity",
+    file: "rinl-login-activity",
+    columns: [
+      ["RINL ID", "emp_id"],
+      ["Name", "name"],
+      ["Role", "role"],
+      ["Action", "action"],
+      ["Time", "timestamp"],
+      ["IP Address", "ip_address"],
+      ["Browser", (row) => [row.browser, row.browser_version].filter(Boolean).join(" ")],
+      ["Operating System", "operating_system"],
+      ["Device", "device"],
+    ],
+  },
+};
+
+function csvCell(value) {
+  const text = value === undefined || value === null ? "" : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function rowValue(row, column) {
+  const source = column[1];
+  return typeof source === "function" ? source(row || {}) : row?.[source];
+}
+
+function rowsToCsv(rows, columns) {
+  const header = columns.map(([label]) => csvCell(label)).join(",");
+  const body = rows.map((row) => columns.map((column) => csvCell(rowValue(row, column))).join(","));
+  return [header, ...body].join("\r\n");
+}
+
+function timestampSlug() {
+  return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+}
+
+function triggerCsvDownload(filename, csv) {
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadCsv(type) {
+  const config = CSV_EXPORTS[type];
+  if (!config) return;
+
+  const rows = getTableRows(type).filter((row) => row && Object.keys(row).length);
+  if (!rows.length) {
+    csvDownloadStatus.textContent = `No ${config.label.toLowerCase()} records available to download.`;
+    return;
+  }
+
+  triggerCsvDownload(`${config.file}-${timestampSlug()}.csv`, rowsToCsv(rows, config.columns));
+  csvDownloadStatus.textContent = `Downloaded ${rows.length} ${config.label.toLowerCase()} record(s).`;
+}
+
+function downloadAllCsvFiles() {
+  const availableTypes = Object.keys(CSV_EXPORTS).filter((type) => getTableRows(type).length);
+
+  if (!availableTypes.length) {
+    csvDownloadStatus.textContent = "No dashboard records available to download.";
+    return;
+  }
+
+  availableTypes.forEach((type, index) => {
+    setTimeout(() => downloadCsv(type), index * 250);
+  });
+  csvDownloadStatus.textContent = `Preparing ${availableTypes.length} CSV file(s).`;
 }
 
 async function handleDocumentUpload(event) {
@@ -1359,6 +1546,38 @@ async function loadEngineers() {
 
   renderEngineers();
   writeEngineerDirectory();
+}
+
+async function loadLoginActivity() {
+  loginActivity = await fetchJson(`${API_BASE}/admin/login-activity`);
+  renderLoginActivity();
+}
+
+function renderLoginActivity() {
+  const body = document.getElementById("loginActivityBody");
+  if (!body) return;
+
+  const rows = filterSearchRows(loginActivity);
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="8">${adminSearchText ? "No activity matches your search." : "No login activity recorded yet."}</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = rows.map((row) => {
+    const browser = [row.browser, row.browser_version].filter(Boolean).join(" ") || "-";
+    return `
+      <tr>
+        <td>${esc(row.name || row.emp_id || "-")}<br><small>${esc(row.emp_id || "-")}</small></td>
+        <td>${esc(row.role || "-")}</td>
+        <td><span class="badge ${row.action === "LOGIN" ? "active-badge" : row.action === "LOGIN_FAILED" ? "inactive-badge" : "pending-badge"}">${esc(row.action || "-")}</span></td>
+        <td>${formatDateTime(row.timestamp)}</td>
+        <td>${esc(browser)}</td>
+        <td>${esc(row.operating_system || "-")}</td>
+        <td>${esc(row.device || "-")}</td>
+        <td>${esc(row.ip_address || "-")}</td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function renderUsers(list) {
@@ -2290,6 +2509,14 @@ function formatDate(date) {
   return new Date(date).toLocaleDateString("en-IN");
 }
 
+function formatDateTime(date) {
+  if (!date) return "-";
+  return new Date(date).toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 document.getElementById("profileName").textContent = user.name || "-";
 document.getElementById("profileEmail").textContent = user.email || "-";
 document.getElementById("profileEmployeeId").textContent = user.rinl_id || user.rinlId || user.employee_id || user.empId || "-";
@@ -2309,6 +2536,7 @@ loadSafely(loadSupervisors, "Supervisors");
 loadSafely(loadWorkers, "Workers");
 loadSafely(loadMuster, "Muster");
 loadSafely(loadRates, "Rates");
+loadSafely(loadLoginActivity, "Login activity");
 renderDocuments();
 renderSummaryReviews();
 renderAdminAlerts();

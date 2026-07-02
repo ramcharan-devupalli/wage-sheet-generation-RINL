@@ -22,6 +22,7 @@ const {
   getWageRates,
   updateWageRate,
   getWageExpenses,
+  getLoginActivity,
 } = require("../controllers/adminController");
 
 router.get("/stats", getAdminStats);
@@ -44,5 +45,6 @@ router.patch("/users/:id/status", updateUserStatus);
 router.get("/wage-rates", getWageRates);
 router.patch("/wage-rates/:skill", updateWageRate);
 router.get("/wage-expenses", getWageExpenses);
+router.get("/login-activity", getLoginActivity);
 
 module.exports = router;

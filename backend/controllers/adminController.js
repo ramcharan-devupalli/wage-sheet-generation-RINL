@@ -122,6 +122,33 @@ const getAdminStats = async (req, res) => {
   }
 };
 
+const getLoginActivity = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        emp_id,
+        name,
+        role,
+        action,
+        timestamp,
+        ip_address,
+        browser,
+        browser_version,
+        operating_system,
+        device
+      FROM login_logs
+      ORDER BY timestamp DESC
+      LIMIT 100
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error loading login activity" });
+  }
+};
+
 const getAllUsers = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -1029,4 +1056,5 @@ module.exports = {
   getWageRates,
   updateWageRate,
   getWageExpenses,
+  getLoginActivity,
 };
