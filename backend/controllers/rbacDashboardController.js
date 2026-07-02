@@ -99,6 +99,54 @@ async function scopedContractorIdsForEngineer(engineerId) {
   return rows.map((row) => row.contractor_id);
 }
 
+async function engineerForContractor(contractor) {
+  const engineerId = contractor?.engineer_id;
+  const aliases = idAliases(engineerId);
+  if (!aliases.length) return null;
+
+  const engineer = await oneRow(
+    `SELECT
+       COALESCE(rinl_id, emp_id) AS rinl_id,
+       emp_id,
+       name,
+       role,
+       mobile,
+       email,
+       status
+     FROM employees
+     WHERE (
+       LOWER(COALESCE(rinl_id, emp_id, '')) = ANY($1::text[])
+       OR LOWER(COALESCE(emp_id, '')) = ANY($1::text[])
+       OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+       OR LOWER(REGEXP_REPLACE(COALESCE(emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+     )
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  if (!engineer) {
+    return {
+      id: engineerId,
+      name: engineerId,
+      department: "",
+      contact: "",
+      pending: 0,
+      status: ""
+    };
+  }
+
+  return {
+    id: engineer.rinl_id || engineer.emp_id,
+    name: engineer.name || engineer.rinl_id || engineer.emp_id,
+    department: engineer.role || "Engineer Incharge",
+    contact: [engineer.mobile, engineer.email].filter(Boolean).join(" / "),
+    pending: 0,
+    mobile: engineer.mobile || "",
+    email: engineer.email || "",
+    status: engineer.status || ""
+  };
+}
+
 async function lookupEntity(table, idColumn, inputId) {
   const aliases = idAliases(inputId);
   if (!aliases.length) return { row: null, aliases: [] };
@@ -120,6 +168,74 @@ async function lookupEntity(table, idColumn, inputId) {
       inputId,
       row?.rinl_id,
       row?.[idColumn]
+    ].filter(Boolean).flatMap(idAliases)))
+  };
+}
+
+async function lookupContractorForLogin(inputId) {
+  const aliases = idAliases(inputId);
+  if (!aliases.length) return { row: null, aliases: [] };
+
+  const directContractor = await oneRow(
+    `SELECT *
+     FROM contractors
+     WHERE LOWER(COALESCE(rinl_id, contractor_id, '')) = ANY($1::text[])
+        OR LOWER(COALESCE(contractor_id, '')) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, contractor_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(contractor_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  if (directContractor) {
+    return {
+      row: directContractor,
+      aliases: Array.from(new Set([
+        inputId,
+        directContractor.rinl_id,
+        directContractor.contractor_id
+      ].filter(Boolean).flatMap(idAliases)))
+    };
+  }
+
+  const loginAccount = await oneRow(
+    `SELECT rinl_id, emp_id, name, mobile, email
+     FROM employees
+     WHERE LOWER(COALESCE(rinl_id, emp_id, '')) = ANY($1::text[])
+        OR LOWER(COALESCE(emp_id, '')) = ANY($1::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(rinl_id, emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+        OR LOWER(REGEXP_REPLACE(COALESCE(emp_id, ''), '[^a-zA-Z0-9]', '', 'g')) = ANY($2::text[])
+     LIMIT 1`,
+    [aliases, aliases.map(compactId)]
+  );
+
+  const linkedContractor = loginAccount
+    ? await oneRow(
+      `SELECT *
+       FROM contractors
+       WHERE (COALESCE($1, '') <> '' AND LOWER(COALESCE(email, '')) = LOWER($1))
+          OR (COALESCE($2, '') <> '' AND COALESCE(mobile, '') = $2)
+          OR (COALESCE($3, '') <> '' AND LOWER(COALESCE(name, '')) = LOWER($3))
+       ORDER BY
+         CASE
+           WHEN COALESCE($1, '') <> '' AND LOWER(COALESCE(email, '')) = LOWER($1) THEN 1
+           WHEN COALESCE($2, '') <> '' AND COALESCE(mobile, '') = $2 THEN 2
+           ELSE 3
+         END,
+         created_at DESC
+       LIMIT 1`,
+      [loginAccount.email || "", loginAccount.mobile || "", loginAccount.name || ""]
+    )
+    : null;
+
+  return {
+    row: linkedContractor,
+    aliases: Array.from(new Set([
+      inputId,
+      loginAccount?.rinl_id,
+      loginAccount?.emp_id,
+      linkedContractor?.rinl_id,
+      linkedContractor?.contractor_id
     ].filter(Boolean).flatMap(idAliases)))
   };
 }
@@ -250,7 +366,7 @@ async function engineerDashboard(engineerId) {
 }
 
 async function contractorDashboard(contractorId) {
-  const { row: contractor, aliases } = await lookupEntity("contractors", "contractor_id", contractorId);
+  const { row: contractor, aliases } = await lookupContractorForLogin(contractorId);
   const contractorAliases = aliases.map(compactId);
   let supervisors = aliases.length
     ? await allRows(
@@ -277,7 +393,8 @@ async function contractorDashboard(contractorId) {
   const attendance = await attendanceForWorkers(workerIds);
   const wages = await wagesForWorkers(workerIds);
   const leaveRequests = getLeaveRequests().filter((request) => aliases.includes(String(request.contractorId || "").toLowerCase()));
-  return { roleScope: "contractor", contractor: withRinlId(contractor), supervisors: withRinlIds(supervisors), workers: withRinlIds(workers), attendance, wages, leaveRequests, summary: summarize(workers, attendance, wages, contractor ? [contractor] : [], supervisors) };
+  const engineer = await engineerForContractor(contractor);
+  return { roleScope: "contractor", contractor: withRinlId(contractor), engineer, supervisors: withRinlIds(supervisors), workers: withRinlIds(workers), attendance, wages, leaveRequests, summary: summarize(workers, attendance, wages, contractor ? [contractor] : [], supervisors) };
 }
 
 async function supervisorDashboard(supervisorId) {

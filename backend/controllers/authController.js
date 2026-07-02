@@ -29,6 +29,7 @@ function rolesMatch(left, right) {
   if (workerRoles.includes(a) && workerRoles.includes(b)) return true;
   if (['contractor', 'contractor representative'].includes(a) && ['contractor', 'contractor representative'].includes(b)) return true;
   if (['engineer', 'engineer incharge', 'engineer in charge'].includes(a) && ['engineer', 'engineer incharge', 'engineer in charge'].includes(b)) return true;
+  if (['supervisor', 'shift supervisor'].includes(a) && ['supervisor', 'shift supervisor'].includes(b)) return true;
   if (['admin', 'hr admin', 'hr / admin'].includes(a) && ['admin', 'hr admin', 'hr / admin'].includes(b)) return true;
   return false;
 }
@@ -102,6 +103,21 @@ function mapContractorLogin(row) {
   };
 }
 
+function mapSupervisorLogin(row) {
+  if (!row) return null;
+  return {
+    rinl_id: row.rinl_id || row.supervisor_id,
+    emp_id: row.supervisor_id,
+    name: row.name,
+    role: 'Supervisor',
+    mobile: row.mobile,
+    email: row.email,
+    password: '1234',
+    status: row.status || 'active',
+    source: 'supervisors'
+  };
+}
+
 function mapWorkerLogin(row, selectedRole) {
   if (!row) return null;
   return {
@@ -132,7 +148,13 @@ async function getLoginUser(empId, role) {
     return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
   }
 
-  if (isAdminRole(role) || isEngineerRole(role) || isSupervisorRole(role)) {
+  if (isSupervisorRole(role)) {
+    const supervisor = await queryOne('SELECT * FROM supervisors WHERE LOWER(COALESCE(rinl_id, supervisor_id)) = LOWER($1) OR LOWER(supervisor_id) = LOWER($1)', [empId]);
+    if (supervisor) return mapSupervisorLogin(supervisor);
+    return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
+  }
+
+  if (isAdminRole(role) || isEngineerRole(role)) {
     return mapEmployeeLogin(await queryOne('SELECT * FROM employees WHERE LOWER(COALESCE(rinl_id, emp_id)) = LOWER($1) OR LOWER(emp_id) = LOWER($1)', [empId]));
   }
 
@@ -143,6 +165,7 @@ function notFoundMessage(role) {
   if (isContractorRole(role)) return 'Contractor ID not found.';
   if (isWorkerRole(role)) return 'Worker ID not found.';
   if (isAdminRole(role)) return 'Admin ID not found.';
+  if (isSupervisorRole(role)) return 'Supervisor ID not found.';
   return 'Employee ID not found.';
 }
 
