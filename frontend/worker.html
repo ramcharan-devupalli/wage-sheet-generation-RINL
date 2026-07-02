@@ -21,14 +21,6 @@
         </div>
       </div>
 
-      <div class="profile-card">
-        <div class="avatar" id="avatarInitials">--</div>
-        <h3 id="sidebarName">Loading...</h3>
-        <p id="sidebarSkill">Loading...</p>
-        <p>RINL Wage Portal</p>
-        <span class="pill">Self Service</span>
-      </div>
-
       <div class="menu-title">MY PORTAL</div>
       <nav class="menu" aria-label="Worker portal pages">
         <a href="#dashboard" class="nav-link active" data-page="dashboard">Dashboard<small>Overview</small></a>
@@ -55,28 +47,28 @@
         <section class="cards">
           <div class="card">
             <div class="stat-label">This month</div>
-            <div class="stat-value" id="daysWorkedCard">Days Worked: --</div>
+            <div class="stat-value" id="daysWorkedCard">Days Worked: </div>
             <div class="section-title">Attendance summary</div>
             <div class="progress"><span class="orange" id="daysWorkedProgress" style="width:0%"></span></div>
           </div>
 
           <div class="card">
             <div class="stat-label">This month</div>
-            <div class="stat-value" id="netWageCard">Net Wage: â‚¹--</div>
+            <div class="stat-value" id="netWageCard">Net Wage: </div>
             <div class="section-title">After deductions</div>
             <div class="progress"><span class="green" id="netWageProgress" style="width:0%"></span></div>
           </div>
 
           <div class="card">
             <div class="stat-label">Before deductions</div>
-            <div class="stat-value" id="grossWageCard">Gross Wage: â‚¹--</div>
+            <div class="stat-value" id="grossWageCard">Gross Wage: </div>
             <div class="section-title">Gross amount</div>
             <div class="progress"><span class="blue" id="grossWageProgress" style="width:0%"></span></div>
           </div>
 
           <div class="card">
             <div class="stat-label">Shift</div>
-            <div class="stat-value" id="shiftHoursCard">Shift: -- hrs</div>
+            <div class="stat-value" id="shiftHoursCard">Shift hrs: </div>
             <div class="section-title">Working hours</div>
             <div class="progress"><span class="purple" id="shiftProgress" style="width:0%"></span></div>
           </div>
@@ -90,38 +82,38 @@
             <div class="summary-grid">
               <div class="mini-box">
                 <h4>Worker Details</h4>
-                <p><strong>Login ID:</strong> <span id="loginId">--</span></p>
-                <p><strong>Worker ID:</strong> <span id="workerId">--</span></p>
-                <p><strong>Job Code:</strong> <span id="jobCode">--</span></p>
-                <p><strong>Name:</strong> <span id="workerName">--</span></p>
-                <p><strong>DOB:</strong> <span id="workerDob">--</span></p>
-                <p><strong>Skill:</strong> <span id="workerSkill">--</span></p>
-                <p><strong>Shift Hours:</strong> <span id="workerShift">--</span></p>
+                <p><strong>Login ID:</strong> <span id="loginId"></span></p>
+                <p><strong>Worker ID:</strong> <span id="workerId"></span></p>
+                <p><strong>Job Code:</strong> <span id="jobCode"></span></p>
+                <p><strong>Name:</strong> <span id="workerName"></span></p>
+                <p><strong>DOB:</strong> <span id="workerDob"></span></p>
+                <p><strong>Skill:</strong> <span id="workerSkill"></span></p>
+                <p><strong>Shift Hours:</strong> <span id="workerShift"></span></p>
               </div>
 
               <div class="mini-box">
                 <h4>Attendance</h4>
-                <p><strong>Present Days:</strong> <span id="presentDays">--</span></p>
-                <p><strong>Absent Days:</strong> <span id="absentDays">--</span></p>
-                <p><strong>Weekly Off:</strong> <span id="weeklyOff">--</span></p>
-                <p><strong>Holidays:</strong> <span id="holidays">--</span></p>
+                <p><strong>Present Days:</strong> <span id="presentDays"></span></p>
+                <p><strong>Absent Days:</strong> <span id="absentDays"></span></p>
+                <p><strong>Weekly Off:</strong> <span id="weeklyOff"></span></p>
+                <p><strong>Holidays:</strong> <span id="holidays"></span></p>
               </div>
 
               <div class="mini-box">
                 <h4>Wage Sheet</h4>
-                <p><strong>Daily Wage:</strong> â‚¹<span id="dailyWage">--</span></p>
-                <p><strong>Gross Wage:</strong> â‚¹<span id="grossWage">--</span></p>
-                <p><strong>PF (5%):</strong> â‚¹<span id="pfAmount">--</span></p>
-                <p><strong>Insurance (2%):</strong> â‚¹<span id="insuranceAmount">--</span></p>
-                <p><strong>Net Wage:</strong> â‚¹<span id="netWage">--</span></p>
+                <p><strong>Daily Wage:</strong> <span id="dailyWage"></span></p>
+                <p><strong>Gross Wage:</strong> <span id="grossWage"></span></p>
+                <p><strong>PF (5%):</strong> <span id="pfAmount"></span></p>
+                <p><strong>Insurance (2%):</strong> <span id="insuranceAmount"></span></p>
+                <p><strong>Net Wage:</strong> <span id="netWage"></span></p>
               </div>
 
               <div class="mini-box">
                 <h4>Leave & Status</h4>
-                <p><strong>Current Leave Status:</strong> <span id="leaveStatusText">--</span></p>
-                <p><strong>Approval:</strong> <span id="approvalStatusText">--</span></p>
-                <p><strong>Applied To:</strong> <span id="appliedToText">--</span></p>
-                <p><strong>Notification:</strong> <span id="notificationText">--</span></p>
+                <p><strong>Current Leave Status:</strong> <span id="leaveStatusText"></span></p>
+                <p><strong>Approval:</strong> <span id="approvalStatusText"></span></p>
+                <p><strong>Applied To:</strong> <span id="appliedToText"></span></p>
+                <p><strong>Notification:</strong> <span id="notificationText"></span></p>
               </div>
             </div>
 
@@ -136,22 +128,22 @@
               <tbody>
                 <tr>
                   <td>Worker Skill</td>
-                  <td id="tableSkill">--</td>
+                  <td id="tableSkill"></td>
                   <td><span class="status approved">Active</span></td>
                 </tr>
                 <tr>
                   <td>Attendance</td>
-                  <td id="tableAttendance">--</td>
+                  <td id="tableAttendance"></td>
                   <td><span class="status approved">Updated</span></td>
                 </tr>
                 <tr>
                   <td>Wage Sheet</td>
-                  <td id="tableWage">--</td>
+                  <td id="tableWage"></td>
                   <td><span class="status pending">Generated</span></td>
                 </tr>
                 <tr>
                   <td>Leave Request</td>
-                  <td id="tableLeave">--</td>
+                  <td id="tableLeave"></td>
                   <td id="tableLeaveStatusWrap"><span class="status pending">Pending</span></td>
                 </tr>
               </tbody>
@@ -188,10 +180,10 @@
           <div class="summary-grid">
             <div class="mini-box">
               <h4>Monthly Attendance</h4>
-              <p><strong>Present:</strong> <span id="attPresent">--</span></p>
-              <p><strong>Absent:</strong> <span id="attAbsent">--</span></p>
-              <p><strong>Weekly Off:</strong> <span id="attWeeklyOff">--</span></p>
-              <p><strong>Holidays:</strong> <span id="attHolidays">--</span></p>
+              <p><strong>Present:</strong> <span id="attPresent"></span></p>
+              <p><strong>Absent:</strong> <span id="attAbsent"></span></p>
+              <p><strong>Weekly Off:</strong> <span id="attWeeklyOff"></span></p>
+              <p><strong>Holidays:</strong> <span id="attHolidays"></span></p>
             </div>
             <div class="mini-box">
               <h4>Attendance Insight</h4>
@@ -234,31 +226,31 @@
               <div class="sheet-grid">
                 <div class="sheet-block">
                   <h4>Worker Info</h4>
-                  <p><strong>Login ID:</strong> <span id="sheetLoginId">--</span></p>
-                  <p><strong>Worker ID:</strong> <span id="sheetWorkerId">--</span></p>
-                  <p><strong>Name:</strong> <span id="sheetWorkerName">--</span></p>
-                  <p><strong>Skill:</strong> <span id="sheetSkill">--</span></p>
+                  <p><strong>Login ID:</strong> <span id="sheetLoginId"></span></p>
+                  <p><strong>Worker ID:</strong> <span id="sheetWorkerId"></span></p>
+                  <p><strong>Name:</strong> <span id="sheetWorkerName"></span></p>
+                  <p><strong>Skill:</strong> <span id="sheetSkill"></span></p>
                 </div>
 
                 <div class="sheet-block">
                   <h4>Attendance</h4>
-                  <p><strong>Present Days:</strong> <span id="sheetPresent">--</span></p>
-                  <p><strong>Absent Days:</strong> <span id="sheetAbsent">--</span></p>
-                  <p><strong>Weekly Off:</strong> <span id="sheetWeeklyOff">--</span></p>
-                  <p><strong>Shift Hours:</strong> <span id="sheetShift">--</span></p>
+                  <p><strong>Present Days:</strong> <span id="sheetPresent"></span></p>
+                  <p><strong>Absent Days:</strong> <span id="sheetAbsent"></span></p>
+                  <p><strong>Weekly Off:</strong> <span id="sheetWeeklyOff"></span></p>
+                  <p><strong>Shift Hours:</strong> <span id="sheetShift"></span></p>
                 </div>
 
                 <div class="sheet-block">
                   <h4>Earnings</h4>
-                  <p><strong>Daily Wage:</strong> â‚¹<span id="sheetDailyWage">--</span></p>
-                  <p><strong>Gross Wage:</strong> â‚¹<span id="sheetGrossWage">--</span></p>
+                  <p><strong>Daily Wage:</strong> ‚¹<span id="sheetDailyWage"></span></p>
+                  <p><strong>Gross Wage:</strong> ‚¹<span id="sheetGrossWage"></span></p>
                 </div>
 
                 <div class="sheet-block">
                   <h4>Deductions</h4>
-                  <p><strong>PF (5%):</strong> â‚¹<span id="sheetPf">--</span></p>
-                  <p><strong>Insurance (2%):</strong> â‚¹<span id="sheetInsurance">--</span></p>
-                  <p><strong>Net Wage:</strong> â‚¹<span id="sheetNetWage">--</span></p>
+                  <p><strong>PF (5%):</strong> ‚¹<span id="sheetPf"></span></p>
+                  <p><strong>Insurance (2%):</strong> ‚¹<span id="sheetInsurance"></span></p>
+                  <p><strong>Net Wage:</strong> ‚¹<span id="sheetNetWage"></span></p>
                 </div>
               </div>
             </div>
@@ -274,25 +266,25 @@
           <div class="leave-stats">
             <div class="leave-card">
               <h4>Leaves Used</h4>
-              <div class="big" id="leaveUsed">--</div>
+              <div class="big" id="leaveUsed"></div>
             </div>
             <div class="leave-card">
               <h4>Pending Leaves</h4>
-              <div class="big" id="leavePendingCount">--</div>
+              <div class="big" id="leavePendingCount"></div>
             </div>
             <div class="leave-card">
               <h4>Leave Balance</h4>
-              <div class="big" id="leaveBalance">--</div>
+              <div class="big" id="leaveBalance"></div>
             </div>
           </div>
 
           <div class="summary-grid">
             <div class="mini-box">
               <h4>Current Leave Status</h4>
-              <p><strong>Status:</strong> <span id="leavePageStatus">--</span></p>
-              <p><strong>Approval:</strong> <span id="leavePageApproval">--</span></p>
-              <p><strong>Applied To:</strong> <span id="leavePageAppliedTo">--</span></p>
-              <p><strong>Notification:</strong> <span id="leavePageNotification">--</span></p>
+              <p><strong>Status:</strong> <span id="leavePageStatus"></span></p>
+              <p><strong>Approval:</strong> <span id="leavePageApproval"></span></p>
+              <p><strong>Applied To:</strong> <span id="leavePageAppliedTo"></span></p>
+              <p><strong>Notification:</strong> <span id="leavePageNotification"></span></p>
             </div>
 
             <div class="mini-box">
@@ -334,8 +326,8 @@
       <div class="form-group">
         <label for="leaveToWhom">Apply To</label>
         <select id="leaveToWhom">
-          <option value="Contractor">Contractor</option>
           <option value="Supervisor">Supervisor</option>
+          <option value="Contractor">Contractor</option>
         </select>
       </div>
 

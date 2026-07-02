@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS contractors (
   dept_cd TEXT,
   mobile TEXT,
   email TEXT,
+  job_start_dt DATE,
+  job_end_dt DATE,
   present NUMERIC(10,2) DEFAULT 0,
   absent NUMERIC(10,2) DEFAULT 0,
   overtime NUMERIC(10,2) DEFAULT 0,
@@ -107,7 +109,9 @@ ALTER TABLE employees
 ALTER TABLE contractors
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,
   ADD COLUMN IF NOT EXISTS engineer_id TEXT,
-  ADD COLUMN IF NOT EXISTS dept_cd TEXT;
+  ADD COLUMN IF NOT EXISTS dept_cd TEXT,
+  ADD COLUMN IF NOT EXISTS job_start_dt DATE,
+  ADD COLUMN IF NOT EXISTS job_end_dt DATE;
 
 ALTER TABLE supervisors
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,

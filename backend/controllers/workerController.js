@@ -164,6 +164,7 @@ const getWorkers = async (req, res, next) => {
         w.name AS worker_name,
         w.contractor_id AS job_cd,
         w.supervisor_id,
+        w.mobile,
         w.category AS worker_desig,
         w.category AS worker_skill,
         COALESCE(w.gender, '-') AS worker_gender,
@@ -173,7 +174,7 @@ const getWorkers = async (req, res, next) => {
         COALESCE(SUM(COALESCE(a.overtime_hrs, 0)), 0) AS overtime
       FROM workers w
       LEFT JOIN attendance a ON a.worker_id = w.worker_id
-      GROUP BY w.id, w.rinl_id, w.worker_id, w.name, w.contractor_id, w.supervisor_id, w.category, w.gender, w.daily_wage, w.created_at
+      GROUP BY w.id, w.rinl_id, w.worker_id, w.name, w.contractor_id, w.supervisor_id, w.mobile, w.category, w.gender, w.daily_wage, w.created_at
       ORDER BY w.created_at DESC
     `);
     res.json(result.rows);

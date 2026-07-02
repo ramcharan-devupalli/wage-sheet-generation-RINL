@@ -37,7 +37,7 @@
       width: 42px;
       height: 42px;
       border-radius: 12px;
-      background: linear-gradient(135deg, #b45309, #059669);
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
       color: white;
       display: grid;
       place-items: center;
@@ -225,8 +225,8 @@
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(4, minmax(180px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
       margin-bottom: 18px;
     }
 
@@ -238,18 +238,51 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.04);
     }
 
+    .cards > .card {
+      min-height: 126px;
+      padding: 22px 22px 18px;
+      background: #ffffff;
+      border: 1px solid #e5ede8;
+      border-top: 3px solid #0d5ea8;
+      border-radius: 8px;
+      box-shadow: 0 16px 34px rgba(27, 55, 40, 0.07);
+    }
+
+    .cards > .card:nth-child(2) {
+      border-top-color: #10b9aa;
+    }
+
+    .cards > .card:nth-child(3) {
+      border-top-color: #f59e0b;
+    }
+
+    .cards > .card:nth-child(4) {
+      border-top-color: #7247ff;
+    }
+
+    .cards > .card .progress {
+      display: none;
+    }
+
+    .cards > .card .section-title {
+      font-size: 13px;
+      margin-top: 0;
+    }
+
     .stat-label {
-      font-size: 12px;
+      font-size: 11px;
       color: #6b7280;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 10px;
+      letter-spacing: 0.04em;
+      margin-bottom: 16px;
+      font-weight: 800;
     }
 
     .stat-value {
-      font-size: 26px;
+      font-size: 29px;
       font-weight: 800;
       margin-bottom: 8px;
+      line-height: 1;
     }
 
     .progress {
@@ -680,4 +713,3 @@
         min-width: 100%;
       }
     }
-

@@ -14,10 +14,12 @@
     const LOCAL_LEAVE_KEY = "rinl_worker_leave_requests";
 
     function sessionHeaders() {
+      const employee = savedSession?.employee || {};
+      const employeeId = employee.rinl_id || employee.rinlId || employee.empId || employee.emp_id || "";
       return {
         "Content-Type": "application/json",
-        "x-employee-id": savedSession?.employee?.empId || "",
-        "x-worker-id": savedSession?.employee?.empId || ""
+        "x-employee-id": employeeId,
+        "x-worker-id": employeeId
       };
     }
 
@@ -92,7 +94,7 @@
     }
 
     function saveLocalLeaveRequest(fromDate, toDate, reason, applyTo) {
-      const workerId = workerData?.workerId || workerData?.worker_id || workerData?.loginId || workerData?.login_id || "LOCAL-WORKER";
+      const workerId = workerData?.rinl_id || workerData?.rinlId || workerData?.workerId || workerData?.worker_id || workerData?.loginId || workerData?.login_id || "LOCAL-WORKER";
       const workerName = workerData?.name || workerData?.full_name || "Worker";
       const requests = readLocalLeaveRequests().filter((request) => request.workerId !== workerId);
       const request = {
@@ -104,10 +106,10 @@
         fromDate,
         toDate,
         reason,
-        applyTo: applyTo || "Contractor",
+        applyTo: applyTo || "Supervisor",
         status: `Applied from ${fromDate} to ${toDate}`,
         approval: "Pending",
-        notification: "Leave request sent to contractor and pending review.",
+        notification: "Leave request sent to supervisor and pending review.",
         requestedDays: Math.max(1, Math.floor((new Date(toDate) - new Date(fromDate)) / 86400000) + 1),
         submittedAt: new Date().toISOString(),
         reviewedAt: null
@@ -119,7 +121,7 @@
     }
 
     function getLocalLeaveForWorker(data) {
-      const workerId = data?.workerId || data?.worker_id || data?.loginId || data?.login_id;
+      const workerId = data?.rinl_id || data?.rinlId || data?.workerId || data?.worker_id || data?.loginId || data?.login_id;
       if (!workerId) return null;
       return readLocalLeaveRequests().find((request) => request.workerId === workerId) || null;
     }
@@ -269,7 +271,7 @@
     function populateWageSheet(data, payroll) {
       const name = data.name || data.full_name || "-";
       const loginId = data.loginId || data.login_id || "-";
-      const workerId = data.workerId || data.worker_id || "-";
+      const workerId = data.rinl_id || data.rinlId || data.workerId || data.worker_id || "-";
       const skillCode = (data.skill || data.skill_code || "").toUpperCase();
       const shiftHours = data.shiftHours ?? data.shift_hours ?? 0;
       const presentDays = data.presentDays ?? data.present_days ?? 0;
@@ -299,7 +301,7 @@
 
       const name = workerData.name || workerData.full_name || "-";
       const loginId = workerData.loginId || workerData.login_id || "-";
-      const workerId = workerData.workerId || workerData.worker_id || "-";
+      const workerId = workerData.rinl_id || workerData.rinlId || workerData.workerId || workerData.worker_id || "-";
       const jobCode = workerData.jobCode || workerData.job_code || "-";
       const dob = workerData.dob || workerData.date_of_birth || "-";
       const skillCode = (workerData.skill || workerData.skill_code || "").toUpperCase();
@@ -317,15 +319,19 @@
       const leavePendingCount = Number(workerData.leavePendingCount ?? workerData.leave_pending_count ?? 0);
       const leaveBalance = Number(workerData.leaveBalance ?? workerData.leave_balance ?? 0);
 
-      document.getElementById("avatarInitials").textContent = name
-        .split(" ")
-        .map(word => word[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase() || "--";
-
-      document.getElementById("sidebarName").textContent = name;
-      document.getElementById("sidebarSkill").textContent = getSkillLabel(skillCode);
+      const avatarInitials = document.getElementById("avatarInitials");
+      const sidebarName = document.getElementById("sidebarName");
+      const sidebarSkill = document.getElementById("sidebarSkill");
+      if (avatarInitials) {
+        avatarInitials.textContent = name
+          .split(" ")
+          .map(word => word[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "--";
+      }
+      if (sidebarName) sidebarName.textContent = name;
+      if (sidebarSkill) sidebarSkill.textContent = getSkillLabel(skillCode);
 
       document.getElementById("loginId").textContent = loginId;
       document.getElementById("workerId").textContent = workerId;
@@ -497,7 +503,7 @@
           document.getElementById("leaveTo").value = "";
           document.getElementById("leaveReason").value = "";
           renderWorkerData();
-          showToast("Backend offline. Leave saved for contractor review locally.");
+          showToast("Backend offline. Leave saved for supervisor review locally.");
           return;
         }
         showToast(error.message || "Failed to submit leave");
@@ -635,4 +641,3 @@
     setupActions();
     initRouting();
     fetchWorkerDashboard();
-

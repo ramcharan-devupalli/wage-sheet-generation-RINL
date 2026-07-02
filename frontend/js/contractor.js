@@ -17,9 +17,12 @@ const CONTRACTOR_API_BASE = ["file:", "http:"].includes(window.location.protocol
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const LOCAL_LEAVE_KEY = "rinl_worker_leave_requests";
 const LOCAL_WAGE_KEY = "rinl_wage_sheet_submissions";
+const CONTRACT_OVERRIDE_KEY = "rinl_contract_dept_overrides";
+const ENGINEER_DIRECTORY_KEY = "rinl_engineer_directory";
 let active = "dashboard";
 let searchText = "";
 let workers = [];
+let supervisors = [];
 let attendance = [];
 let otRequests = [];
 let wageSheets = [];
@@ -28,9 +31,12 @@ let leaveRequests = [];
 let lastKnownWageDecision = "";
 
 function sessionHeaders() {
+  const employee = savedSession?.employee || {};
+  const employeeId = employee.rinl_id || employee.rinlId || employee.empId || employee.emp_id || "";
   return {
     "Content-Type": "application/json",
-    "x-employee-id": savedSession?.employee?.empId || ""
+    "x-employee-id": employeeId,
+    "x-role": employee.role || "Contractor"
   };
 }
 let engineer = { name: "", department: "", contact: "", pending: 0 };
@@ -38,15 +44,15 @@ let contract = { number: "", start: "", end: "", value: 0, balance: 0, scope: ""
 let settings = { company: "", signatory: "", documents: "" };
 
 const moduleDefs = {
-  dashboard: { title: "Dashboard", copy: "Upload a CSV/XLS file and review the contractor workflow overview.", small: "Home page" },
+  dashboard: { title: "Dashboard", copy: "Assigned workforce, attendance, wages, and approvals load automatically from PostgreSQL.", small: "Home page" },
   workforce: { title: "Workforce", copy: "Manage workers by category and status.", small: "Manage workers" },
   attendance: { title: "Attendance", copy: "Attendance details by worker, shift, status, and labor type.", small: "Daily and monthly" },
   overtime: { title: "Overtime", copy: "Overtime working-hours details by worker, shift, and labor type.", small: "Working hours" },
   wagesheets: { title: "Wage Sheets", copy: "Generate and review wage sheet details.", small: "Critical module" },
   engineers: { title: "Engineers", copy: "Assigned Engineer-In-Charge details.", small: "Assigned EIC" },
-  reports: { title: "Reports", copy: "Download reports from uploaded data.", small: "Downloads" },
+  reports: { title: "Reports", copy: "Download reports from assigned database records.", small: "Downloads" },
   contract: { title: "Contract Details", copy: "Contract number, dates, value, balance, and scope.", small: "Validity and value" },
-  notifications: { title: "Notifications", copy: "Upload and workflow alerts.", small: "Alerts" },
+  notifications: { title: "Notifications", copy: "Workflow alerts and approval updates.", small: "Alerts" },
   settings: { title: "Settings", copy: "Company profile and document settings.", small: "Profile and security" }
 };
 
@@ -55,6 +61,18 @@ function esc(value) {
 }
 function cleanKey(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+function lookupKey(value) {
+  return String(value || "").trim().toLowerCase();
+}
+function compactLookupKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+function idLookupKeys(value) {
+  const raw = lookupKey(value);
+  const compact = compactLookupKey(value);
+  const withoutRinl = raw.replace(/^rinl[-_\s]*/i, "");
+  return Array.from(new Set([raw, withoutRinl, compact, compact.replace(/^rinl/, "")].filter(Boolean)));
 }
 function pick(row, names) {
   for (const name of names) {
@@ -102,6 +120,60 @@ function writeLocalWageSubmissions(submissions) {
   } catch (error) {
     throw new Error("Browser storage is blocked. Wage sheet could not be submitted.");
   }
+}
+function readContractOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(CONTRACT_OVERRIDE_KEY) || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+function readEngineerDirectory() {
+  try {
+    return JSON.parse(localStorage.getItem(ENGINEER_DIRECTORY_KEY) || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+function localContractOverride(contractorRow) {
+  const overrides = readContractOverrides();
+  const keys = [
+    contractorRow?.rinl_id,
+    contractorRow?.rinlId,
+    contractorRow?.contractor_id,
+    contractorRow?.job_cd,
+    savedSession?.employee?.rinl_id,
+    savedSession?.employee?.rinlId,
+    savedSession?.employee?.empId,
+    savedSession?.employee?.emp_id
+  ].filter(Boolean).flatMap(idLookupKeys);
+  for (const key of keys) {
+    if (overrides[key]) return typeof overrides[key] === "string" ? { dept_cd: overrides[key] } : overrides[key];
+  }
+  return {};
+}
+function engineerFromDirectory(engineerId) {
+  const directory = readEngineerDirectory();
+  for (const key of idLookupKeys(engineerId)) {
+    if (directory[key]) return directory[key];
+  }
+  return null;
+}
+function assignedEngineerFromLocal(contractorRow) {
+  const override = localContractOverride(contractorRow);
+  const engineerId = contractorRow?.engineer_id || contractorRow?.engineerId || override.engineer_id || override.engineerId;
+  const details = engineerFromDirectory(engineerId);
+  if (details) return details;
+  if (engineerId) {
+    return {
+      id: engineerId,
+      name: engineerId,
+      department: "Engineer Incharge",
+      contact: "",
+      pending: 0
+    };
+  }
+  return null;
 }
 function applyLocalWageSubmissionStatus() {
   const submissions = readLocalWageSubmissions();
@@ -249,7 +321,7 @@ function normalizeWorker(row, index) {
   const pf = num(pick(row, ["pf", "pf_deduction"])) || gross * 0.12;
   const esi = num(pick(row, ["esi", "esi_deduction"])) || gross * 0.0075;
   return {
-    id: pick(row, ["worker_id", "workerid", "id", "aadhaar_id", "adhar_id", "employee_id"]) || "W-" + String(index + 1).padStart(4, "0"),
+    id: pick(row, ["rinl_id", "rinlId", "worker_id", "workerid", "id", "aadhaar_id", "adhar_id", "employee_id"]) || "W-" + String(index + 1).padStart(4, "0"),
     name: pick(row, ["name", "worker_name", "worker"]),
     category: pick(row, ["type_of_labor", "labor_type", "labour_type", "category", "skill", "worker_skill", "worker_category"]) || "Unskilled",
     department: pick(row, ["department", "dept", "contractor_id", "job_cd"]) || "",
@@ -262,8 +334,28 @@ function normalizeWorker(row, index) {
     net: num(pick(row, ["net", "net_wage", "payable"])) || Math.max(0, gross - pf - esi)
   };
 }
+function normalizeSupervisor(row, index) {
+  const days = num(row.present);
+  const absent = num(row.absent);
+  const ot = num(row.overtime);
+  return {
+    id: row.rinl_id || row.rinlId || row.supervisor_id || "SUP-" + String(index + 1).padStart(3, "0"),
+    name: row.name || row.supervisor_name || row.supervisor_id || "",
+    category: "Supervisor",
+    department: row.contractor_id || "",
+    status: row.status || "Active",
+    days,
+    absent,
+    ot,
+    gross: 0,
+    pf: 0,
+    esi: 0,
+    net: 0,
+    source: "supervisor"
+  };
+}
 function normalizeAttendance(row, index) {
-  const workerId = pick(row, ["worker_id", "workerid", "id", "aadhaar_id", "adhar_id"]) || "W-" + String(index + 1).padStart(4, "0");
+  const workerId = pick(row, ["rinl_id", "rinlId", "worker_id", "workerid", "id", "aadhaar_id", "adhar_id"]) || "W-" + String(index + 1).padStart(4, "0");
   const worker = workers.find((item) => item.id === workerId);
   return {
     workerId,
@@ -273,13 +365,34 @@ function normalizeAttendance(row, index) {
   };
 }
 function normalizeOt(row, index) {
-  const workerId = pick(row, ["worker_id", "workerid", "id", "aadhaar_id", "adhar_id"]) || "W-" + String(index + 1).padStart(4, "0");
+  const workerId = pick(row, ["rinl_id", "rinlId", "worker_id", "workerid", "id", "aadhaar_id", "adhar_id"]) || "W-" + String(index + 1).padStart(4, "0");
   const worker = workers.find((item) => item.id === workerId);
   return {
     workerId,
     shift: pick(row, ["shift", "ot_shift"]) || "A",
     hours: num(pick(row, ["ot", "overtime", "overtime_hrs", "ot_hours", "over_time", "over_time_working_hours"])),
     laborType: pick(row, ["type_of_labor", "labor_type", "labour_type", "type", "category", "worker_category", "skill", "worker_skill"]) || worker?.category || ""
+  };
+}
+function normalizeDbAttendance(row) {
+  const workerId = row.rinl_id || row.rinlId || row.worker_id || row.workerId || "";
+  const worker = workers.find((item) => item.id === workerId);
+  return {
+    workerId,
+    shift: row.shift || "A",
+    status: row.status || "Present",
+    laborType: worker?.category || row.category || ""
+  };
+}
+function normalizeDbWage(row) {
+  return {
+    id: row.id || `WS-${row.worker_id || row.worker_name || Date.now()}`,
+    month: `${row.month || ""} ${row.year || ""}`.trim() || "Current Month",
+    workers: 1,
+    gross: Number(row.gross_wage || 0),
+    net: Number(row.net_wage || 0),
+    status: row.status || "Generated",
+    remarks: row.worker_name || row.worker_id || ""
   };
 }
 function buildContract(rows) {
@@ -327,19 +440,33 @@ function applyImportedRows(rows, fileName) {
 }
 async function loadContractorDashboard() {
   try {
-    const response = await fetch(`${CONTRACTOR_API_BASE}/api/contractor/dashboard`, { method: "GET", credentials: "include", headers: sessionHeaders() });
+    const response = await fetch(`${CONTRACTOR_API_BASE}/api/rbac/dashboard`, { method: "GET", credentials: "include", headers: sessionHeaders() });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || "Could not load contractor dashboard");
-    workers = Array.isArray(data.workers) ? data.workers : workers;
-    attendance = Array.isArray(data.attendance) ? data.attendance : attendance;
-    otRequests = Array.isArray(data.overtime) ? data.overtime : otRequests;
-    wageSheets = Array.isArray(data.wageSheets) ? data.wageSheets : wageSheets;
+    const dbWorkers = Array.isArray(data.workers) ? data.workers.map((row, index) => normalizeWorker(row, index)) : workers;
+    supervisors = Array.isArray(data.supervisors) ? data.supervisors.map((row, index) => normalizeSupervisor(row, index)) : supervisors;
+    const workerIds = new Set(dbWorkers.map((worker) => cleanKey(worker.id)));
+    workers = [
+      ...supervisors.filter((supervisor) => !workerIds.has(cleanKey(supervisor.id))),
+      ...dbWorkers
+    ];
+    attendance = Array.isArray(data.attendance) ? data.attendance.map(normalizeDbAttendance) : attendance;
+    otRequests = Array.isArray(data.overtime) ? data.overtime : supervisors.filter((supervisor) => supervisor.ot > 0).map((supervisor) => ({ workerId: supervisor.id, shift: "A", hours: supervisor.ot, laborType: "Supervisor" }));
+    wageSheets = Array.isArray(data.wages) ? data.wages.map(normalizeDbWage) : wageSheets;
     notifications = Array.isArray(data.notifications) ? data.notifications.filter((item) => !item.leaveRequestId) : notifications;
     leaveRequests = Array.isArray(data.leaveRequests) ? data.leaveRequests : leaveRequests;
     applyLocalLeaveRequests();
     syncWageDecision(false);
-    engineer = data.engineer || engineer;
-    contract = data.contract || contract;
+    engineer = data.engineer || assignedEngineerFromLocal(data.contractor) || engineer;
+    const contractOverride = localContractOverride(data.contractor);
+    contract = data.contractor ? {
+      number: data.contractor.rinl_id || data.contractor.rinlId || data.contractor.contractor_id,
+      start: data.contractor.job_start_dt || data.contractor.start_date || contractOverride.job_start_dt || contractOverride.start_date || (data.contractor.created_at ? String(data.contractor.created_at).slice(0, 10) : ""),
+      end: data.contractor.job_end_dt || data.contractor.end_date || contractOverride.job_end_dt || contractOverride.end_date || "",
+      value: 0,
+      balance: 0,
+      scope: data.contractor.company || data.contractor.name || contractOverride.work_area || contractOverride.contractor_name || ""
+    } : contract;
     render();
   } catch (error) {
     console.error(error);
@@ -360,10 +487,11 @@ async function handleDataFile(input) {
   }
 }
 function totals() {
+  const presentCount = attendance.filter((row) => /present/i.test(row.status)).length;
   return {
     workers: workers.length,
     active: workers.filter((worker) => /active/i.test(worker.status)).length,
-    attendance: attendance.filter((row) => /present/i.test(row.status)).length,
+    attendance: presentCount || sumBy(supervisors, "days"),
     payroll: workers.reduce((sum, worker) => sum + Number(worker.net || 0), 0)
   };
 }
@@ -378,8 +506,8 @@ function reportRow(label, value) {
   return '<div class="report-row"><span>' + esc(label) + '</span><b>' + esc(value) + '</b></div>';
 }
 function buildWageSheetSubmissionDetails() {
-  const presentCount = attendance.filter((row) => /present/i.test(row.status)).length;
-  const absentCount = attendance.filter((row) => /absent/i.test(row.status)).length;
+  const presentCount = attendance.filter((row) => /present/i.test(row.status)).length || sumBy(supervisors, "days");
+  const absentCount = attendance.filter((row) => /absent/i.test(row.status)).length || sumBy(supervisors, "absent");
   const gross = wageSheets.length ? sumBy(wageSheets, "gross") : sumBy(workers, "gross");
   const net = wageSheets.length ? sumBy(wageSheets, "net") : sumBy(workers, "net");
   const pf = sumBy(workers, "pf");
@@ -488,30 +616,33 @@ function renderNav() {
 }
 function renderKpis() {
   const item = totals();
-  const cards = [["Workers", item.workers, item.active + " active", "#0b3d78"], ["Attendance", item.attendance, "present", "#15803d"], ["Overtime", otRequests.length, "workers", "#c98610"], ["Payroll", money.format(item.payroll), "net wage", "#165aa3"]];
+  const cards = [["Workers", item.workers, item.active + " active", "#0d5ea8"], ["Attendance", item.attendance, "present", "#10b9aa"], ["Overtime", otRequests.length, "workers", "#f59e0b"], ["Payroll", money.format(item.payroll), "net wage", "#7247ff"]];
   document.getElementById("kpis").innerHTML = cards.map((card) => '<article class="kpi" style="--tone:' + card[3] + '"><small>' + esc(card[0]) + "</small><strong>" + esc(card[1]) + "</strong><span>" + esc(card[2]) + "</span></article>").join("");
 }
 function renderModules() {
-  const items = [["Data Upload", ["Upload one CSV or XLS file to fill the dashboard."]], ["Work Status", ["Review workers, attendance, overtime, and category details."]], ["Wage Progress", ["Generate wage sheets from uploaded working data."]], ["Alerts", ["See engineer, contract, approval, and upload reminders."]]];
-  document.getElementById("moduleArea").innerHTML = '<div class="module-grid">' + items.map((item) => '<article class="module"><h4>' + esc(item[0]) + "</h4><ul>" + item[1].map((text) => "<li>" + esc(text) + "</li>").join("") + "</ul></article>").join("") + "</div>";
-}
-function renderChart() {
-  const data = active === "attendance" ? countBy(attendance, "status") : active === "overtime" ? countBy(otRequests, "laborType") : active === "wagesheets" ? wageSheets.map((sheet) => ({ label: sheet.month, value: sheet.net })) : countBy(workers, "category");
-  const max = Math.max(...data.map((row) => Number(row.value) || 0), 1);
-  document.getElementById("chartHint").textContent = moduleDefs[active].title + " snapshot";
-  document.getElementById("chartArea").innerHTML = data.map((row) => '<div class="bar-row"><b>' + esc(row.label) + '</b><div class="bar-track"><div class="bar-fill" style="--w:' + Math.max(5, Number(row.value || 0) / max * 100) + '%"></div></div><span>' + esc(row.value) + "</span></div>").join("");
+  const items = [
+    "Monitor assigned workers and active labour status",
+    "Track attendance, overtime hours, and worker categories",
+    "Generate wage sheets from monthly attendance records",
+    "Review engineer approvals, remarks, and contractor alerts"
+  ];
+  const visibleItems = filtered(items.map((item) => ({ details: item })));
+  document.getElementById("moduleArea").innerHTML = visibleItems.length
+    ? '<div class="dashboard-overview"><h3>Dashboard Overview</h3><ul>' + visibleItems.map((item) => "<li>" + esc(item.details) + "</li>").join("") + "</ul></div>"
+    : '<div class="dashboard-overview"><h3>Dashboard Overview</h3><p class="empty-note">No dashboard overview items match your search.</p></div>';
 }
 function table(rows, cols) {
   const body = filtered(rows);
   const head = "<thead><tr>" + cols.map((col) => "<th>" + esc(col.label) + "</th>").join("") + "</tr></thead>";
-  return body.length ? head + "<tbody>" + body.map((row) => "<tr>" + cols.map((col) => "<td>" + (col.status ? statusPill(row[col.key]) : esc(row[col.key])) + "</td>").join("") + "</tr>").join("") + "</tbody>" : head + '<tbody><tr><td colspan="' + cols.length + '">No records found. Upload a CSV/XLS file to fill this register.</td></tr></tbody>';
+  const emptyText = searchText.trim() ? "No records match your search." : "No assigned records found. Ask Admin to assign data in the master database.";
+  return body.length ? head + "<tbody>" + body.map((row) => "<tr>" + cols.map((col) => "<td>" + (col.status ? statusPill(row[col.key]) : esc(row[col.key])) + "</td>").join("") + "</tr>").join("") + "</tbody>" : head + '<tbody><tr><td colspan="' + cols.length + '">' + emptyText + '</td></tr></tbody>';
 }
 function renderWorkArea() {
   const title = document.getElementById("workTitle");
   const hint = document.getElementById("workHint");
   const area = document.getElementById("workArea");
   title.textContent = moduleDefs[active].title + " Workspace";
-  hint.textContent = "Use uploaded data for this module";
+  hint.textContent = "Uses assigned database records for this module";
   if (active === "engineers") {
     title.textContent = "Engineer Details";
     hint.textContent = "Assigned Engineer-In-Charge information";
@@ -519,7 +650,7 @@ function renderWorkArea() {
   } else if (active === "contract") {
     area.innerHTML = '<div class="info-list"><div class="info-row"><span>Contract Number</span><b>' + esc(contract.number || "-") + '</b></div><div class="info-row"><span>Start Date</span><b>' + esc(contract.start || "-") + '</b></div><div class="info-row"><span>End Date</span><b>' + esc(contract.end || "-") + '</b></div><div class="info-row"><span>Contract Value</span><b>' + money.format(contract.value || 0) + '</b></div><div class="info-row"><span>Remaining Balance</span><b>' + money.format(contract.balance || 0) + '</b></div><div class="info-row"><span>Scope of Work</span><b>' + esc(contract.scope || "-") + "</b></div></div>";
   } else if (active === "settings") {
-    area.innerHTML = '<form id="settingsForm"><div class="form-grid"><label>Company Profile<input name="company" value="' + esc(settings.company) + '"></label><label>Authorized Signatory<input name="signatory" value="' + esc(settings.signatory) + '"></label><label class="full">Document Uploads<textarea name="documents">' + esc(settings.documents) + '</textarea></label><label>Password Change<input name="password" type="password"></label><div class="full"><button class="btn primary" type="submit">Save Settings</button></div></div></form>';
+    area.innerHTML = '<form id="settingsForm"><div class="form-grid"><label>Company Profile<input name="company" value="' + esc(settings.company) + '"></label><label>Authorized Signatory<input name="signatory" value="' + esc(settings.signatory) + '"></label><label>Password Change<input name="password" type="password"></label><div class="full"><button class="btn primary" type="submit">Save Settings</button></div></div></form>';
     document.getElementById("settingsForm").addEventListener("submit", (event) => { event.preventDefault(); showToast("Settings saved"); });
   } else if (active === "notifications") {
     title.textContent = "Leave Request Review";
@@ -551,7 +682,7 @@ function renderTable() {
   let title = "Worker Register";
   let hint = "Supervisor, Skilled, Semi-Skilled and Unskilled workers";
   if (active === "attendance") {
-    const source = attendance.length ? attendance : workers.map((worker) => ({ workerId: worker.id, shift: "", status: "", laborType: worker.category }));
+    const source = attendance.length ? attendance : workers.map((worker) => ({ workerId: worker.id, shift: "-", status: worker.days ? "Present" : "", laborType: worker.category }));
     rows = source.map((row, index) => ({ serial: index + 1, workerId: row.workerId, shift: row.shift, status: row.status, laborType: row.laborType }));
     cols = [{ key: "serial", label: "S.No" }, { key: "workerId", label: "Worker ID" }, { key: "shift", label: "Shift" }, { key: "status", label: "Present / Absent", status: true }, { key: "laborType", label: "Type of Labor" }];
     title = "Attendance Register";
@@ -567,7 +698,7 @@ function renderTable() {
     rows = wageSheets;
     cols = [{ key: "id", label: "Sheet ID" }, { key: "month", label: "Month" }, { key: "workers", label: "Workers" }, { key: "gross", label: "Gross" }, { key: "net", label: "Net" }, { key: "status", label: "Status", status: true }, { key: "remarks", label: "Engineer Remarks" }];
     title = "Wage Sheet";
-    hint = "Generated from uploaded data";
+    hint = "Generated from assigned database records";
   }
   document.getElementById("tableTitle").textContent = title;
   document.getElementById("tableHint").textContent = hint;
@@ -575,16 +706,16 @@ function renderTable() {
 }
 function renderActions() {
   const actions = {
-    dashboard: ["Upload File", "Daily Attendance", "Generate Wage Sheet"],
+    dashboard: ["Daily Attendance", "Generate Wage Sheet"],
     workforce: ["Add Worker", "Edit Worker", "Transfer Worker", "Deactivate Worker"],
-    attendance: ["Daily Attendance Entry", "Bulk Upload", "Attendance History"],
+    attendance: ["Daily Attendance Entry", "Attendance History"],
     overtime: ["OT Working Hours"],
     wagesheets: ["Generate Wage Sheet", "Download Approved Wage Sheet"],
     engineers: ["Contact Engineer", "Pending Verifications"],
     reports: ["Attendance Reports", "Wage Reports", "OT Reports", "Worker Category Reports"],
     contract: ["View Contract"],
     notifications: ["Mark All Read"],
-    settings: ["Company Profile", "Authorized Signatory", "Document Uploads", "Password Change"]
+    settings: ["Company Profile", "Authorized Signatory", "Password Change"]
   }[active] || [];
   document.getElementById("actionHint").textContent = moduleDefs[active].title + " shortcuts";
   document.getElementById("quickActions").innerHTML = actions.map((action) => '<button class="btn" onclick="runAction(\'' + esc(action) + "')\">" + esc(action) + "</button>").join("");
@@ -605,8 +736,8 @@ function render() {
   document.getElementById("tablePanel").style.display = (isDashboard || ["contract", "engineers", "settings", "reports", "notifications"].includes(active)) ? "none" : "block";
   if (isDashboard) {
     renderKpis();
-    document.getElementById("moduleTitle").textContent = "Dashboard Overview";
-    document.getElementById("moduleHint").textContent = "Four-point summary of the contractor workflow";
+    document.getElementById("moduleTitle").textContent = "";
+    document.getElementById("moduleHint").textContent = "";
     renderModules();
   }
   document.getElementById("pageTitle").textContent = module.title;
@@ -616,7 +747,6 @@ function render() {
     renderTable();
   }
   renderActions();
-  renderChart();
   renderNotifications();
 }
 function setActiveSection(sectionId) {
@@ -634,7 +764,7 @@ function openWorkerModal() {
 }
 function closeModal() { document.getElementById("modal").classList.remove("open"); }
 function generateWageSheet() {
-  if (!workers.length) return showToast("Upload worker file first");
+  if (!workers.length) return showToast("No assigned workers found");
   const gross = workers.reduce((sum, worker) => sum + Number(worker.gross || 0), 0);
   const net = workers.reduce((sum, worker) => sum + Number(worker.net || 0), 0);
   wageSheets.unshift({ id: "WS-GENERATED", month: "Imported Period", workers: workers.length, gross, net, status: "Generated", remarks: "Ready for review." });
@@ -718,7 +848,7 @@ function submitWageSheetToEngineer() {
 }
 function runAction(action) {
   const text = action.toLowerCase();
-  if (text.includes("upload")) return document.getElementById("dataFileInput").click();
+  if (text.includes("upload")) return showToast("Only Admin can upload master data.");
   if (text.includes("attendance reports")) return downloadReport("attendance");
   if (text.includes("ot reports")) return downloadReport("overtime");
   if (text.includes("wage reports")) return downloadReport("wages");
@@ -751,9 +881,9 @@ document.getElementById("sideNav").addEventListener("click", (event) => {
 });
 document.getElementById("searchInput").addEventListener("input", (event) => {
   searchText = event.target.value;
-  if (!["dashboard", "contract", "engineers", "settings", "reports", "notifications"].includes(active)) renderTable();
+  render();
 });
-document.getElementById("dataFileInput").addEventListener("change", (event) => handleDataFile(event.target));
+document.getElementById("dataFileInput")?.addEventListener("change", (event) => handleDataFile(event.target));
 document.getElementById("exportBtn").addEventListener("click", () => {
   if (active === "attendance") return downloadReport("attendance");
   if (active === "overtime") return downloadReport("overtime");

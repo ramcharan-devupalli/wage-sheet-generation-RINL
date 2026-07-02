@@ -267,6 +267,27 @@ const getSupervisors = async (req, res) => {
   }
 };
 
+async function syncSupervisorLogin({ supervisorId, name, mobile, email, status }) {
+  await pool.query(
+    `INSERT INTO employees (rinl_id, emp_id, name, role, mobile, email, password, status)
+     VALUES ($1, $1, $2, 'Supervisor', $3, $4, '1234', $5)
+     ON CONFLICT (emp_id) DO UPDATE SET
+       rinl_id = EXCLUDED.rinl_id,
+       name = EXCLUDED.name,
+       role = EXCLUDED.role,
+       mobile = EXCLUDED.mobile,
+       email = EXCLUDED.email,
+       status = EXCLUDED.status`,
+    [
+      supervisorId,
+      name,
+      mobile || null,
+      email || null,
+      String(status || "active").toLowerCase()
+    ]
+  );
+}
+
 const saveSupervisor = async (req, res) => {
   try {
     const {
@@ -315,6 +336,14 @@ const saveSupervisor = async (req, res) => {
         Number(overtime || 0),
       ]
     );
+
+    await syncSupervisorLogin({
+      supervisorId,
+      name: supervisorName,
+      mobile,
+      email,
+      status
+    });
 
     res.status(201).json({ message: "Supervisor saved successfully", supervisor: result.rows[0] });
   } catch (err) {
@@ -378,6 +407,14 @@ const updateSupervisor = async (req, res) => {
       return res.status(404).json({ message: "Supervisor not found" });
     }
 
+    await syncSupervisorLogin({
+      supervisorId,
+      name: supervisorName,
+      mobile,
+      email,
+      status
+    });
+
     res.json({ message: "Supervisor updated successfully", supervisor: result.rows[0] });
   } catch (err) {
     console.error(err);
@@ -399,6 +436,10 @@ const deleteSupervisor = async (req, res) => {
 
     await pool.query(
       "UPDATE workers SET supervisor_id = NULL WHERE supervisor_id = $1",
+      [id]
+    );
+    await pool.query(
+      "DELETE FROM employees WHERE emp_id = $1 AND LOWER(COALESCE(role, '')) = 'supervisor'",
       [id]
     );
 
@@ -684,6 +725,13 @@ const importSupervisors = async (req, res) => {
          RETURNING id, COALESCE(rinl_id, supervisor_id) AS rinl_id, supervisor_id, contractor_id, name, mobile, email, status, present, absent, overtime, created_at`,
         [supervisorId, contractorId, name, mobile, email, status, present, absent, overtime]
       );
+      await syncSupervisorLogin({
+        supervisorId,
+        name,
+        mobile,
+        email,
+        status
+      });
       imported.push(result.rows[0]);
     }
     res.json({ message: "Supervisors imported successfully", supervisors: imported });
