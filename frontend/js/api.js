@@ -1,6 +1,6 @@
 const API_BASE_URL = window.location.protocol === 'file:'
   || (['localhost', '127.0.0.1', ''].includes(window.location.hostname) && window.location.port !== '3000')
-  ? 'http://localhost:3000'
+  ? 'http://localhost:5000'
   : window.location.origin;
 
 async function apiRequest(path, options = {}) {
