@@ -7,6 +7,9 @@ const twilioClient = require('../services/smsService');
 const { UAParser } = require('ua-parser-js');
 
 const otpStore = {};
+const OTP_PROVIDER_TIMEOUT_MS = Number(process.env.OTP_PROVIDER_TIMEOUT_MS || 15000);
+const OTP_TTL_MS = 2 * 60 * 1000;
+const ENABLE_LOCAL_OTP_FALLBACK = process.env.ENABLE_LOCAL_OTP_FALLBACK === 'true';
 
 async function queryOne(sql, params = []) {
   const result = await db.query(sql, params);
@@ -71,6 +74,28 @@ function otpSuccessResponse(message, otp, options = {}) {
 
 function otpStoreKey(type, value) {
   return `${type}:${value}`;
+}
+
+function normalizedOtpValue(type, value) {
+  return type === 'email' ? String(value || '').trim().toLowerCase() : String(value || '').trim();
+}
+
+function storeLocalOtp(type, value, otp = generateOtp()) {
+  const normalizedValue = normalizedOtpValue(type, value);
+  otpStore[otpStoreKey(type, normalizedValue)] = { otp, expiresAt: Date.now() + OTP_TTL_MS };
+  return { otp, normalizedValue };
+}
+
+function localOtpFallbackResponse(type, value, reason, existingOtp = '') {
+  if (!ENABLE_LOCAL_OTP_FALLBACK) return null;
+  const { otp } = storeLocalOtp(type, value, existingOtp || undefined);
+  console.warn(`Using local ${type} OTP fallback:`, reason);
+  return {
+    success: true,
+    fallback: true,
+    devOtp: otp,
+    message: `Delivery service is slow/unavailable, so a local development OTP was generated. Use OTP ${otp}.`
+  };
 }
 
 function mapEmployeeLogin(row) {
@@ -685,7 +710,7 @@ async function sendOtp(req, res, next) {
           action: 'LOGIN_FAILED',
           req
         });
-        await sendLoginActivityNotification('LOGIN_FAILED', attemptedUser, req, validationError);
+        sendLoginActivityNotification('LOGIN_FAILED', attemptedUser, req, validationError);
         return res.status(validationError.includes('not active') ? 403 : 400).json({ success: false, message: validationError });
       }
     }
@@ -694,6 +719,8 @@ async function sendOtp(req, res, next) {
       if (!/^\d{10}$/.test(value)) return res.status(400).json({ success: false, message: 'Enter valid 10-digit mobile.' });
 
       if (!twilioClient || !twilioConfig.verifyServiceSid) {
+        const fallback = localOtpFallbackResponse(type, value, 'Mobile OTP is not configured.');
+        if (fallback) return res.json(fallback);
         return res.status(500).json({
           success: false,
           message: 'Mobile OTP is not configured. Set TWILIO_SID, TWILIO_AUTH_TOKEN, and TWILIO_VERIFY_SID in .env, then restart the backend.'
@@ -703,13 +730,15 @@ async function sendOtp(req, res, next) {
       try {
         await withTimeout(
           twilioClient.verify.v2.services(twilioConfig.verifyServiceSid).verifications.create({ to: `+91${value}`, channel: 'sms' }),
-          10000,
+          OTP_PROVIDER_TIMEOUT_MS,
           'Twilio SMS request timed out. Check Twilio credentials, Verify SID, account balance, and phone number permissions.'
         );
         return res.json({ success: true, message: 'OTP sent to mobile.' });
       } catch (smsErr) {
         const smsMessage = smsErr.message || smsErr.moreInfo || smsErr.code || 'Unknown Twilio error.';
         console.error('SMS OTP failed:', smsMessage);
+        const fallback = localOtpFallbackResponse(type, value, smsMessage);
+        if (fallback) return res.json(fallback);
         return res.status(500).json({
           success: false,
           message: `Could not send mobile OTP: ${smsMessage}`
@@ -721,9 +750,11 @@ async function sendOtp(req, res, next) {
     if (!isValidEmail(emailValue)) return res.status(400).json({ success: false, message: 'Enter valid email.' });
 
     const otp = generateOtp();
-    otpStore[otpStoreKey(type, emailValue)] = { otp, expiresAt: Date.now() + 2 * 60 * 1000 };
+    storeLocalOtp(type, emailValue, otp);
 
     if (!mailConfig.gmailUser || !mailConfig.gmailPass) {
+      const fallback = localOtpFallbackResponse(type, emailValue, 'Email OTP is not configured.', otp);
+      if (fallback) return res.json(fallback);
       delete otpStore[otpStoreKey(type, emailValue)];
       return res.status(500).json({
         success: false,
@@ -740,12 +771,14 @@ async function sendOtp(req, res, next) {
           text: `Your RINL Wage Portal OTP is ${otp}. It is valid for 2 minutes.`,
           html: `<p>Your RINL Wage Portal OTP is <strong>${otp}</strong>. It is valid for 2 minutes.</p>`
         }),
-        10000,
+        OTP_PROVIDER_TIMEOUT_MS,
         'Gmail SMTP request timed out. Check internet/DNS access and Gmail app password settings.'
       );
       return res.json(otpSuccessResponse('OTP sent to email.', otp));
     } catch (mailErr) {
       console.error('Email send failed:', mailErr.message);
+      const fallback = localOtpFallbackResponse(type, emailValue, mailErr.message, otp);
+      if (fallback) return res.json(fallback);
       delete otpStore[otpStoreKey(type, emailValue)];
       return res.status(500).json({
         success: false,
@@ -817,7 +850,7 @@ async function verifyOtp(req, res, next) {
     );
 
     await recordLoginActivity({ empId: loginEmpId, name: loginName, role: loginRole, action: 'LOGIN', req });
-    await sendLoginActivityNotification('LOGIN', {
+    sendLoginActivityNotification('LOGIN', {
       emp_id: loginEmpId,
       rinl_id: loginEmpId,
       name: loginName,
