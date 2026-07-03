@@ -42,6 +42,28 @@ CREATE TABLE IF NOT EXISTS login_logs (
   user_agent TEXT
 );
 
+CREATE TABLE IF NOT EXISTS notification_recipients (
+  id SERIAL PRIMARY KEY,
+  name TEXT,
+  event TEXT NOT NULL DEFAULT 'signup',
+  channel TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT notification_recipients_channel_check CHECK (channel IN ('email', 'sms'))
+);
+
+CREATE TABLE IF NOT EXISTS hosts (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  notify_on_signup BOOLEAN DEFAULT TRUE,
+  notify_on_login BOOLEAN DEFAULT TRUE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS contractors (
   id SERIAL PRIMARY KEY,
   rinl_id TEXT UNIQUE,
@@ -157,6 +179,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS employees_rinl_id_unique ON employees(rinl_id)
 CREATE UNIQUE INDEX IF NOT EXISTS contractors_rinl_id_unique ON contractors(rinl_id);
 CREATE UNIQUE INDEX IF NOT EXISTS supervisors_rinl_id_unique ON supervisors(rinl_id);
 CREATE UNIQUE INDEX IF NOT EXISTS workers_rinl_id_unique ON workers(rinl_id);
+CREATE INDEX IF NOT EXISTS hosts_active_idx ON hosts(active, notify_on_signup, notify_on_login);
+CREATE INDEX IF NOT EXISTS notification_recipients_event_channel_idx ON notification_recipients(event, channel, active);
 CREATE INDEX IF NOT EXISTS contractors_engineer_idx ON contractors(engineer_id);
 CREATE INDEX IF NOT EXISTS supervisors_contractor_idx ON supervisors(contractor_id);
 CREATE INDEX IF NOT EXISTS workers_contractor_idx ON workers(contractor_id);

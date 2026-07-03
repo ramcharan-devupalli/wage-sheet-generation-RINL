@@ -199,6 +199,56 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
+function splitRecipients(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function uniqueRecipients(values) {
+  return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+}
+
+async function getNotificationRecipients(event) {
+  const hostFlag = event === 'login' ? 'notify_on_login' : 'notify_on_signup';
+
+  try {
+    const hostResult = await db.query(
+      `SELECT email, phone
+       FROM hosts
+       WHERE active = TRUE AND ${hostFlag} = TRUE
+       ORDER BY id`
+    );
+    const hostEmails = uniqueRecipients(hostResult.rows.map((row) => row.email));
+    const hostPhones = uniqueRecipients(hostResult.rows.map((row) => row.phone));
+
+    if (hostEmails.length || hostPhones.length) {
+      return { email: hostEmails, sms: hostPhones };
+    }
+  } catch (err) {
+    console.error('Could not load hosts table notification recipients:', err.message);
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT channel, destination
+       FROM notification_recipients
+       WHERE active = TRUE AND event = $1
+       ORDER BY id`,
+      [event]
+    );
+
+    return {
+      email: uniqueRecipients(result.rows.filter((row) => row.channel === 'email').map((row) => row.destination)),
+      sms: uniqueRecipients(result.rows.filter((row) => row.channel === 'sms').map((row) => row.destination))
+    };
+  } catch (err) {
+    console.error('Could not load notification recipients:', err.message);
+    return { email: [], sms: [] };
+  }
+}
+
 function firstForwardedIp(value) {
   return String(value || '').split(',')[0].trim();
 }
@@ -322,46 +372,51 @@ function signupNotificationHtml(user, req) {
 
 async function notifySignup(user, req) {
   const text = signupNotificationText(user, req);
+  const recipients = await getNotificationRecipients('signup');
+  const emailRecipients = recipients.email.length ? recipients.email : splitRecipients(mailConfig.signupNotifyEmail);
+  const smsRecipients = recipients.sms.length ? recipients.sms : splitRecipients(twilioConfig.signupNotifyPhone);
   const notifications = {
     email: { attempted: false, sent: false, message: '' },
     sms: { attempted: false, sent: false, message: '' }
   };
   const tasks = [];
 
-  if (mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.signupNotifyEmail) {
+  if (mailConfig.gmailUser && mailConfig.gmailPass && emailRecipients.length) {
     notifications.email.attempted = true;
     tasks.push({
       type: 'email',
       task: transporter.sendMail({
         from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-        to: mailConfig.signupNotifyEmail,
+        to: emailRecipients,
         subject: `New signup: ${user.name} (${user.role})`,
         text,
         html: signupNotificationHtml(user, req)
       })
     });
   } else {
-    notifications.email.message = 'Email notification not configured. Check EMAIL, EMAIL_PASSWORD, and SIGNUP_NOTIFY_EMAIL.';
+    notifications.email.message = 'Email notification not configured. Add active email rows to notification_recipients, or set EMAIL, EMAIL_PASSWORD, and SIGNUP_NOTIFY_EMAIL.';
   }
 
-  if (twilioClient && twilioConfig.signupNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)) {
+  if (twilioClient && smsRecipients.length && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)) {
     notifications.sms.attempted = true;
-    const messageOptions = {
-      to: twilioConfig.signupNotifyPhone,
-      body: text
-    };
+    smsRecipients.forEach((phone) => {
+      const messageOptions = {
+        to: phone,
+        body: text
+      };
 
-    if (twilioConfig.messagingServiceSid) {
-      messageOptions.messagingServiceSid = twilioConfig.messagingServiceSid;
-    } else {
-      messageOptions.from = twilioConfig.phoneNumber;
-    }
+      if (twilioConfig.messagingServiceSid) {
+        messageOptions.messagingServiceSid = twilioConfig.messagingServiceSid;
+      } else {
+        messageOptions.from = twilioConfig.phoneNumber;
+      }
 
-    tasks.push({ type: 'sms', task: twilioClient.messages.create(messageOptions) });
+      tasks.push({ type: 'sms', recipient: phone, task: twilioClient.messages.create(messageOptions) });
+    });
   } else {
     const missing = [];
     if (!twilioClient) missing.push('TWILIO_SID/TWILIO_AUTH_TOKEN');
-    if (!twilioConfig.signupNotifyPhone) missing.push('SIGNUP_NOTIFY_PHONE');
+    if (!smsRecipients.length) missing.push('notification_recipients SMS row or SIGNUP_NOTIFY_PHONE');
     if (!twilioConfig.phoneNumber && !twilioConfig.messagingServiceSid) missing.push('TWILIO_PHONE_NUMBER or TWILIO_MESSAGING_SERVICE_SID');
     notifications.sms.message = `SMS notification not configured. Missing: ${missing.join(', ') || 'unknown settings'}.`;
   }
@@ -376,10 +431,11 @@ async function notifySignup(user, req) {
     const type = tasks[index].type;
     if (result.status === 'rejected') {
       notifications[type].message = result.reason?.message || String(result.reason);
-      console.error(`${type.toUpperCase()} signup notification failed:`, notifications[type].message);
+      console.error(`${type.toUpperCase()} signup notification failed${tasks[index].recipient ? ` for ${tasks[index].recipient}` : ''}:`, notifications[type].message);
     } else {
       notifications[type].sent = true;
       notifications[type].message = `${type.toUpperCase()} notification sent.`;
+      if (tasks[index].recipient) console.log(`${type.toUpperCase()} signup notification sent to ${tasks[index].recipient}.`);
     }
   });
 
@@ -391,9 +447,11 @@ function activityNotificationText(action, user, req, reason = '') {
   const title = action === 'LOGIN_FAILED' ? 'Failed RINL Wage Portal login attempt' : 'RINL Wage Portal login';
   return [
     title,
-    `User: ${user.name || 'Unknown'}`,
+    `Name: ${user.name || 'Unknown'}`,
     `ID: ${user.emp_id || user.rinl_id || 'Unknown'}`,
     `Role: ${user.role || 'Unknown'}`,
+    `Mobile: ${user.mobile || 'Not provided'}`,
+    `Email: ${user.email || 'Not provided'}`,
     reason ? `Reason: ${reason}` : '',
     `Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
     `IP: ${details.ip}`,
@@ -406,9 +464,11 @@ function activityNotificationText(action, user, req, reason = '') {
 function activityNotificationHtml(action, user, req, reason = '') {
   const details = getRequestDetails(req);
   const rows = [
-    ['User', user.name || 'Unknown'],
+    ['Name', user.name || 'Unknown'],
     ['ID', user.emp_id || user.rinl_id || 'Unknown'],
     ['Role', user.role || 'Unknown'],
+    ['Mobile', user.mobile || 'Not provided'],
+    ['Email', user.email || 'Not provided'],
     ['Reason', reason || 'Successful login'],
     ['Time', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
     ['IP', details.ip],
@@ -423,7 +483,8 @@ function activityNotificationHtml(action, user, req, reason = '') {
 
   return `
     <div style="font-family:Arial,sans-serif;color:#1a1a2e;">
-      <h2 style="color:#003f8a;">${escapeHtml(action === 'LOGIN_FAILED' ? 'Failed Login Attempt' : 'New Login')}</h2>
+      <h2 style="color:#003f8a;">${escapeHtml(action === 'LOGIN_FAILED' ? 'Failed RINL Wage Portal Login' : 'New RINL Wage Portal Login')}</h2>
+      <p>${escapeHtml(action === 'LOGIN_FAILED' ? 'A login attempt failed. Password details are not included for security.' : 'A user logged in successfully. Password details are not included for security.')}</p>
       <table style="border-collapse:collapse;width:100%;max-width:620px;">${bodyRows}</table>
     </div>
   `;
@@ -431,14 +492,17 @@ function activityNotificationHtml(action, user, req, reason = '') {
 
 async function notifyLoginActivity(action, user, req, reason = '') {
   const text = activityNotificationText(action, user, req, reason);
+  const recipients = await getNotificationRecipients('login');
+  const emailRecipients = recipients.email.length ? recipients.email : splitRecipients(mailConfig.loginNotifyEmail);
+  const smsRecipients = recipients.sms.length ? recipients.sms : splitRecipients(twilioConfig.loginNotifyPhone);
   const tasks = [];
 
-  if (mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.loginNotifyEmail) {
+  if (mailConfig.gmailUser && mailConfig.gmailPass && emailRecipients.length) {
     tasks.push({
       type: 'email',
       task: transporter.sendMail({
         from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-        to: mailConfig.loginNotifyEmail,
+        to: emailRecipients,
         subject: action === 'LOGIN_FAILED'
           ? `Failed login attempt: ${user.emp_id || 'unknown'}`
           : `New login: ${user.name || user.emp_id || 'unknown'} (${user.role || 'Unknown'})`,
@@ -448,19 +512,21 @@ async function notifyLoginActivity(action, user, req, reason = '') {
     });
   }
 
-  if (twilioClient && twilioConfig.loginNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)) {
-    const messageOptions = {
-      to: twilioConfig.loginNotifyPhone,
-      body: text
-    };
+  if (twilioClient && smsRecipients.length && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)) {
+    smsRecipients.forEach((phone) => {
+      const messageOptions = {
+        to: phone,
+        body: text
+      };
 
-    if (twilioConfig.messagingServiceSid) {
-      messageOptions.messagingServiceSid = twilioConfig.messagingServiceSid;
-    } else {
-      messageOptions.from = twilioConfig.phoneNumber;
-    }
+      if (twilioConfig.messagingServiceSid) {
+        messageOptions.messagingServiceSid = twilioConfig.messagingServiceSid;
+      } else {
+        messageOptions.from = twilioConfig.phoneNumber;
+      }
 
-    tasks.push({ type: 'sms', task: twilioClient.messages.create(messageOptions) });
+      tasks.push({ type: 'sms', recipient: phone, task: twilioClient.messages.create(messageOptions) });
+    });
   }
 
   if (!tasks.length) return;
@@ -468,7 +534,9 @@ async function notifyLoginActivity(action, user, req, reason = '') {
   const results = await Promise.allSettled(tasks.map((entry) => entry.task));
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
-      console.error(`${tasks[index].type.toUpperCase()} login notification failed:`, result.reason?.message || String(result.reason));
+      console.error(`${tasks[index].type.toUpperCase()} login notification failed${tasks[index].recipient ? ` for ${tasks[index].recipient}` : ''}:`, result.reason?.message || String(result.reason));
+    } else if (tasks[index].recipient) {
+      console.log(`${tasks[index].type.toUpperCase()} login notification sent to ${tasks[index].recipient}.`);
     }
   });
 }
@@ -509,20 +577,22 @@ function sendLoginActivityNotification(action, user, req, reason = '') {
 }
 
 function queueSignupNotification(user, req) {
+  const hasEmailFallback = Boolean(mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.signupNotifyEmail);
+  const hasSmsFallback = Boolean(twilioClient && twilioConfig.signupNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid));
   const notifications = {
     email: {
-      attempted: Boolean(mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.signupNotifyEmail),
+      attempted: hasEmailFallback,
       sent: false,
-      message: mailConfig.gmailUser && mailConfig.gmailPass && mailConfig.signupNotifyEmail
+      message: hasEmailFallback
         ? 'Email notification queued.'
-        : 'Email notification not configured. Check EMAIL, EMAIL_PASSWORD, and SIGNUP_NOTIFY_EMAIL.'
+        : 'Email notification queued if active email recipients exist in notification_recipients.'
     },
     sms: {
-      attempted: Boolean(twilioClient && twilioConfig.signupNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)),
+      attempted: hasSmsFallback,
       sent: false,
-      message: twilioClient && twilioConfig.signupNotifyPhone && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)
+      message: hasSmsFallback
         ? 'SMS notification queued.'
-        : 'SMS notification not configured.'
+        : 'SMS notification queued if active SMS recipients exist in notification_recipients.'
     }
   };
 
@@ -747,7 +817,14 @@ async function verifyOtp(req, res, next) {
     );
 
     await recordLoginActivity({ empId: loginEmpId, name: loginName, role: loginRole, action: 'LOGIN', req });
-    await sendLoginActivityNotification('LOGIN', { emp_id: loginEmpId, name: loginName, role: loginRole }, req);
+    await sendLoginActivityNotification('LOGIN', {
+      emp_id: loginEmpId,
+      rinl_id: loginEmpId,
+      name: loginName,
+      role: loginRole,
+      mobile: loginUser?.mobile || null,
+      email: loginUser?.email || null
+    }, req);
 
     return res.json({
       success: true,
