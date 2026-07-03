@@ -1,13 +1,25 @@
-const nodemailer = require('nodemailer');
-const mailConfig = require('../config/mailConfig');
+const { Resend } = require('resend');
 
-module.exports = nodemailer.createTransport({
-  service: 'gmail',
-  pool: true,
-  maxConnections: 2,
-  maxMessages: 100,
-  auth: { user: mailConfig.gmailUser, pass: mailConfig.gmailPass },
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 20000
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+module.exports = {
+  sendMail: async ({ to, subject, text, html }) => {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+
+    const result = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+      to,
+      subject,
+      text,
+      html,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    return result;
+  },
+};
