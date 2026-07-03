@@ -294,8 +294,8 @@
     .modal-head-left { display: flex; align-items: center; gap: 12px; }
     .modal-head-title { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: #fff; }
     .modal-head-sub { font-size: 11px; color: rgba(255,255,255,0.6); }
-    .modal-close { background: rgba(255,255,255,0.1); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-    .modal-close:hover { background: rgba(255,255,255,0.2); }
+    .modal-close { flex: 0 0 auto; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.38); color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-family: Arial, sans-serif; font-size: 22px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.1s; }
+    .modal-close:hover, .modal-close:focus-visible { background: rgba(255,255,255,0.28); outline: none; transform: scale(1.04); }
     .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg); border-bottom: 1px solid var(--border); }
     .auth-tab { min-height: 44px; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
     .auth-tab.active { background: #fff; border-bottom-color: var(--gold); color: var(--blue); }
