@@ -129,6 +129,7 @@ async function ensureCompatibleSchema() {
       ADD COLUMN IF NOT EXISTS contractor_id TEXT,
       ADD COLUMN IF NOT EXISTS supervisor_id TEXT,
       ADD COLUMN IF NOT EXISTS mobile TEXT,
+      ADD COLUMN IF NOT EXISTS email TEXT,
       ADD COLUMN IF NOT EXISTS gender TEXT,
       ADD COLUMN IF NOT EXISTS daily_wage NUMERIC(10, 2) DEFAULT 0,
       ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',

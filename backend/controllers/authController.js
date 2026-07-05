@@ -151,7 +151,7 @@ function mapWorkerLogin(row, selectedRole) {
     name: row.name,
     role: selectedRole || row.category || 'Workers',
     mobile: row.mobile,
-    email: null,
+    email: row.email,
     password: '1234',
     status: row.status || 'active',
     source: 'workers'
@@ -202,7 +202,7 @@ function validateLoginUser(user, { password, role, type, value }) {
   if (type === 'phone' && !user.mobile) return 'Mobile number is not available for this user. Use Email OTP.';
   if (type === 'phone' && String(user.mobile).trim() !== String(value || '').trim()) return 'Mobile number does not match this user.';
   if (type === 'email' && user.email && String(user.email).trim().toLowerCase() !== String(value || '').trim().toLowerCase()) return 'Email does not match this user.';
-  if (type === 'email' && !user.email) return 'Email address is not available for this user. Use Mobile OTP.';
+  if (type === 'email' && !user.email) return '';
   return '';
 }
 

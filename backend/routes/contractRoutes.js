@@ -43,6 +43,8 @@ router.post("/", async (req, res, next) => {
     const {
       job_cd,
       contractor_name,
+      contractor_email,
+      email,
       engineer_id,
       engineerId,
       contractor_phone,
@@ -60,15 +62,17 @@ router.post("/", async (req, res, next) => {
     }
 
     const resolvedEngineerId = await resolveEngineerId(engineerId || engineer_id || null);
+    const contractorEmail = contractor_email || email || null;
 
     const result = await pool.query(
-      `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, company, dept_cd, job_start_dt, job_end_dt)
-       VALUES ($1, $1, $2, $3, $4, $5, $6, $10, $11)
+      `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, email, company, dept_cd, job_start_dt, job_end_dt)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $11, $12)
        ON CONFLICT (contractor_id) DO UPDATE SET
          rinl_id = EXCLUDED.rinl_id,
          engineer_id = EXCLUDED.engineer_id,
          name = EXCLUDED.name,
          mobile = EXCLUDED.mobile,
+         email = EXCLUDED.email,
          company = EXCLUDED.company,
          dept_cd = EXCLUDED.dept_cd,
          job_start_dt = EXCLUDED.job_start_dt,
@@ -78,12 +82,13 @@ router.post("/", async (req, res, next) => {
          contractor_id AS job_cd,
          engineer_id,
          name AS contractor_name,
+         email AS contractor_email,
          mobile AS contractor_phone,
          company AS work_area,
          dept_cd,
-         $7::text AS contractor_address,
-         $8::text AS party_cd,
-         $9::text AS job_desc,
+         $8::text AS contractor_address,
+         $9::text AS party_cd,
+         $10::text AS job_desc,
          COALESCE(job_start_dt, created_at::date) AS job_start_dt,
          job_end_dt`,
       [
@@ -91,6 +96,7 @@ router.post("/", async (req, res, next) => {
         resolvedEngineerId,
         contractor_name,
         contractor_phone || null,
+        contractorEmail,
         work_area || null,
         dept_cd || null,
         contractor_address || null,
@@ -115,6 +121,7 @@ router.get("/", async (req, res, next) => {
         c.contractor_id AS job_cd,
         c.engineer_id,
         c.name AS contractor_name,
+        c.email AS contractor_email,
         c.mobile AS contractor_phone,
         c.company AS work_area,
         COALESCE(c.dept_cd, '-') AS dept_cd,
@@ -134,6 +141,8 @@ router.patch("/:job_cd", async (req, res, next) => {
     const { job_cd } = req.params;
     const {
       contractor_name,
+      contractor_email,
+      email,
       engineer_id,
       engineerId,
       contractor_phone,
@@ -148,6 +157,7 @@ router.patch("/:job_cd", async (req, res, next) => {
     }
 
     const resolvedEngineerId = await resolveEngineerId(engineerId || engineer_id || null);
+    const contractorEmail = contractor_email || email || null;
 
     const result = await pool.query(
       `UPDATE contractors
@@ -158,13 +168,15 @@ router.patch("/:job_cd", async (req, res, next) => {
            engineer_id = $4,
            dept_cd = $6,
            job_start_dt = $7,
-           job_end_dt = $8
+           job_end_dt = $8,
+           email = $9
        WHERE contractor_id = $5
        RETURNING
          COALESCE(rinl_id, contractor_id) AS rinl_id,
          contractor_id AS job_cd,
          engineer_id,
          name AS contractor_name,
+         email AS contractor_email,
          mobile AS contractor_phone,
          company AS work_area,
          COALESCE(dept_cd, '-') AS dept_cd,
@@ -179,6 +191,7 @@ router.patch("/:job_cd", async (req, res, next) => {
         dept_cd || "-",
         job_start_dt || null,
         job_end_dt || null,
+        contractorEmail,
       ]
     );
 

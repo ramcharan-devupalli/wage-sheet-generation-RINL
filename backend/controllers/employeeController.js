@@ -80,16 +80,16 @@ async function getWorkers(req, res, next) {
 
 async function createWorker(req, res, next) {
   try {
-    const { workerId, name, category, contractorId, supervisorId, mobile, dailyWage } = req.body;
+    const { workerId, name, category, contractorId, supervisorId, email, dailyWage } = req.body;
     if (!workerId || !name || !category) {
       return res.status(400).json({ success: false, message: 'Worker ID, name, and category are required.' });
     }
 
     const worker = await queryOne(
-      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, daily_wage)
+      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, email, daily_wage)
        VALUES ($1, $1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [workerId, name, category, contractorId || null, supervisorId || null, mobile || null, dailyWage || 0]
+      [workerId, name, category, contractorId || null, supervisorId || null, email || null, dailyWage || 0]
     );
     return res.status(201).json({ success: true, worker });
   } catch (err) {

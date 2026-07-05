@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS workers (
   contractor_id TEXT,
   supervisor_id TEXT,
   mobile TEXT,
+  email TEXT,
   gender TEXT,
   daily_wage NUMERIC(10,2) DEFAULT 0,
   status TEXT DEFAULT 'active',
@@ -155,6 +156,7 @@ ALTER TABLE login_logs
 ALTER TABLE contractors
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,
   ADD COLUMN IF NOT EXISTS engineer_id TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
   ADD COLUMN IF NOT EXISTS dept_cd TEXT,
   ADD COLUMN IF NOT EXISTS job_start_dt DATE,
   ADD COLUMN IF NOT EXISTS job_end_dt DATE;
@@ -168,6 +170,7 @@ ALTER TABLE supervisors
 ALTER TABLE workers
   ADD COLUMN IF NOT EXISTS rinl_id TEXT,
   ADD COLUMN IF NOT EXISTS supervisor_id TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
   ADD COLUMN IF NOT EXISTS gender TEXT;
 
 UPDATE employees SET rinl_id = emp_id WHERE rinl_id IS NULL;

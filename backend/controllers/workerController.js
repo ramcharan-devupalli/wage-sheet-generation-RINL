@@ -101,7 +101,7 @@ const createWorker = async (req, res, next) => {
       worker_desig,
       worker_gender,
       gender,
-      mobile,
+      email,
       daily_wage,
     } = req.body;
 
@@ -114,7 +114,7 @@ const createWorker = async (req, res, next) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, gender, daily_wage)
+      `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, email, gender, daily_wage)
        VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (worker_id) DO UPDATE SET
          rinl_id = EXCLUDED.rinl_id,
@@ -122,7 +122,7 @@ const createWorker = async (req, res, next) => {
          category = EXCLUDED.category,
          contractor_id = EXCLUDED.contractor_id,
          supervisor_id = EXCLUDED.supervisor_id,
-         mobile = EXCLUDED.mobile,
+         email = EXCLUDED.email,
          gender = EXCLUDED.gender,
          daily_wage = EXCLUDED.daily_wage
        RETURNING
@@ -133,7 +133,7 @@ const createWorker = async (req, res, next) => {
          supervisor_id,
          category AS worker_desig,
          category AS worker_skill,
-         mobile,
+         email,
          daily_wage,
          COALESCE(gender, '-') AS worker_gender`,
       [
@@ -142,7 +142,7 @@ const createWorker = async (req, res, next) => {
         skill,
         job_cd || contractor_id || null,
         supervisorId || supervisor_id || null,
-        mobile || null,
+        email || null,
         worker_gender || gender || null,
         Number(daily_wage || 0)
       ]
@@ -164,7 +164,7 @@ const getWorkers = async (req, res, next) => {
         w.name AS worker_name,
         w.contractor_id AS job_cd,
         w.supervisor_id,
-        w.mobile,
+        w.email,
         w.category AS worker_desig,
         w.category AS worker_skill,
         COALESCE(w.gender, '-') AS worker_gender,
@@ -174,7 +174,7 @@ const getWorkers = async (req, res, next) => {
         COALESCE(SUM(COALESCE(a.overtime_hrs, 0)), 0) AS overtime
       FROM workers w
       LEFT JOIN attendance a ON a.worker_id = w.worker_id
-      GROUP BY w.id, w.rinl_id, w.worker_id, w.name, w.contractor_id, w.supervisor_id, w.mobile, w.category, w.gender, w.daily_wage, w.created_at
+      GROUP BY w.id, w.rinl_id, w.worker_id, w.name, w.contractor_id, w.supervisor_id, w.email, w.category, w.gender, w.daily_wage, w.created_at
       ORDER BY w.created_at DESC
     `);
     res.json(result.rows);
@@ -200,7 +200,7 @@ const updateWorker = async (req, res, next) => {
       worker_desig,
       worker_gender,
       gender,
-      mobile,
+      email,
       daily_wage,
       status,
     } = req.body;
@@ -221,7 +221,7 @@ const updateWorker = async (req, res, next) => {
            contractor_id = $3,
            supervisor_id = $4,
            category = $5,
-           mobile = $6,
+           email = $6,
            gender = $7,
            daily_wage = $8,
            status = $9
@@ -234,7 +234,7 @@ const updateWorker = async (req, res, next) => {
          supervisor_id,
          category AS worker_desig,
          category AS worker_skill,
-         mobile,
+         email,
          daily_wage,
          COALESCE(gender, '-') AS worker_gender`,
       [
@@ -243,7 +243,7 @@ const updateWorker = async (req, res, next) => {
         job_cd || contractor_id || null,
         supervisorId || supervisor_id || null,
         skill,
-        mobile || null,
+        email || null,
         worker_gender || gender || null,
         Number(daily_wage || 0),
         status || "active",
@@ -289,7 +289,7 @@ const getCurrentWorker = async (req, res, next) => {
     }
 
     const workerResult = await pool.query(
-      `SELECT COALESCE(rinl_id, worker_id) AS rinl_id, worker_id, name, category, contractor_id, mobile, daily_wage
+      `SELECT COALESCE(rinl_id, worker_id) AS rinl_id, worker_id, name, category, contractor_id, email, daily_wage
        FROM workers
        WHERE worker_id = $1
        LIMIT 1`,

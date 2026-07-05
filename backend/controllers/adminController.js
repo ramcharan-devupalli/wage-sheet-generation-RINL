@@ -104,17 +104,29 @@ const getAdminStats = async (req, res) => {
     const workers = await pool.query("SELECT COUNT(*) FROM workers");
     const muster = await pool.query("SELECT COUNT(*) FROM attendance");
 
-    const wage = await pool.query(`
+    const wageSheets = await pool.query(`
       SELECT COALESCE(SUM(gross_wage), 0) AS total_wage
       FROM wage_sheets
     `);
+    const attendanceWage = await pool.query(`
+      SELECT COALESCE(SUM(
+        CASE WHEN LOWER(COALESCE(a.status, '')) = 'present'
+          THEN COALESCE(w.daily_wage, 0)
+          ELSE 0
+        END
+      ), 0) AS total_wage
+      FROM attendance a
+      LEFT JOIN workers w ON w.worker_id = a.worker_id
+    `);
+    const wageSheetTotal = Number(wageSheets.rows[0].total_wage);
+    const attendanceTotal = Number(attendanceWage.rows[0].total_wage);
 
     res.json({
       total_users: Number(users.rows[0].count),
       total_contracts: Number(contracts.rows[0].count),
       total_workers: Number(workers.rows[0].count),
       total_muster: Number(muster.rows[0].count),
-      total_wage: Number(wage.rows[0].total_wage),
+      total_wage: wageSheetTotal || attendanceTotal,
     });
   } catch (err) {
     console.error(err);
@@ -680,6 +692,7 @@ const importContracts = async (req, res) => {
       const contractorId = value(row, ["job_cd", "job_code", "contractor_id", "contract_id"], `CON-${Date.now()}-${index + 1}`);
       const engineerId = await resolveEngineerId(value(row, ["engineer_id", "engineer", "engineer_incharge", "engineer_rinl_id", "eic_id"], null));
       const name = value(row, ["contractor_name", "contractor", "name"], contractorId);
+      const email = value(row, ["contractor_email", "email", "email_id", "mail", "mail_id"], null);
       const mobile = value(row, ["contractor_phone", "phone", "mobile"], null);
       const company = value(row, ["work_area", "company", "area"], null);
 
@@ -691,16 +704,17 @@ const importContracts = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, company)
-         VALUES ($1, $1, $2, $3, $4, $5)
+        `INSERT INTO contractors (rinl_id, contractor_id, engineer_id, name, mobile, email, company)
+         VALUES ($1, $1, $2, $3, $4, $5, $6)
          ON CONFLICT (contractor_id) DO UPDATE SET
            rinl_id = EXCLUDED.rinl_id,
            engineer_id = EXCLUDED.engineer_id,
            name = EXCLUDED.name,
            mobile = EXCLUDED.mobile,
+           email = EXCLUDED.email,
            company = EXCLUDED.company
-         RETURNING COALESCE(rinl_id, contractor_id) AS rinl_id, contractor_id AS job_cd, engineer_id, name AS contractor_name, mobile AS contractor_phone, company AS work_area, '-' AS dept_cd, created_at AS job_start_dt, NULL AS job_end_dt`,
-        [contractorId, engineerId, name, mobile, company]
+         RETURNING COALESCE(rinl_id, contractor_id) AS rinl_id, contractor_id AS job_cd, engineer_id, name AS contractor_name, email AS contractor_email, mobile AS contractor_phone, company AS work_area, '-' AS dept_cd, created_at AS job_start_dt, NULL AS job_end_dt`,
+        [contractorId, engineerId, name, mobile, email, company]
       );
       imported.push(result.rows[0]);
     }
@@ -781,7 +795,7 @@ const importWorkers = async (req, res) => {
       const category = value(row, ["worker_skill", "worker skill", "skill", "skill_type", "skill type", "skill_category", "skill category", "category", "worker_desig", "worker desig", "designation", "designation_name", "designation name", "worker_designation", "worker designation"], "Worker");
       const contractorId = value(row, ["job_cd", "job_code", "job", "job_id", "contractor_id", "contract_id", "contract_code", "contract"], null);
       const supervisorId = value(row, ["supervisor_id", "supervisor id", "supervisor", "supervisor_rinl_id", "supervisor rinl id", "supervisor_rinl", "supervisor_code", "supervisor code"], null);
-      const mobile = value(row, ["mobile", "phone", "phone_number"], null);
+      const email = value(row, ["email", "email_id", "mail", "mail_id", "worker_email"], null);
       const gender = value(row, ["worker_gender", "worker gender", "gender", "gender_name", "gender name", "sex"], null);
       const dailyWage = Number(value(row, ["daily_wage", "daily wage", "daily_wages", "daily wages", "wage", "wages", "wage_rate", "wage rate", "rate", "daily_rate", "daily rate", "rate_per_day", "rate per day", "wage_per_day", "wage per day", "basic_wage", "basic wage", "basic_rate", "basic rate", "per_day_rate", "per day rate", "per_day_wage", "per day wage"], 0)) || 0;
       const present = Number(value(row, ["present", "present_days", "days_present", "total_present_days"], 0)) || 0;
@@ -796,7 +810,7 @@ const importWorkers = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, mobile, gender, daily_wage, status)
+        `INSERT INTO workers (rinl_id, worker_id, name, category, contractor_id, supervisor_id, email, gender, daily_wage, status)
          VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, 'active')
          ON CONFLICT (worker_id) DO UPDATE SET
            rinl_id = EXCLUDED.rinl_id,
@@ -804,12 +818,12 @@ const importWorkers = async (req, res) => {
            category = EXCLUDED.category,
            contractor_id = EXCLUDED.contractor_id,
            supervisor_id = EXCLUDED.supervisor_id,
-           mobile = EXCLUDED.mobile,
+           email = EXCLUDED.email,
            gender = EXCLUDED.gender,
            daily_wage = EXCLUDED.daily_wage,
            status = 'active'
-         RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id AS adhar_id, name AS worker_name, contractor_id AS job_cd, supervisor_id, category AS worker_skill, category AS worker_desig, COALESCE(gender, '-') AS worker_gender, mobile, daily_wage`,
-        [workerId, name, category, contractorId, supervisorId, mobile, gender, dailyWage]
+         RETURNING COALESCE(rinl_id, worker_id) AS rinl_id, worker_id AS adhar_id, name AS worker_name, contractor_id AS job_cd, supervisor_id, category AS worker_skill, category AS worker_desig, COALESCE(gender, '-') AS worker_gender, email, daily_wage`,
+        [workerId, name, category, contractorId, supervisorId, email, gender, dailyWage]
       );
       imported.push({ ...result.rows[0], present, absent, overtime });
     }
