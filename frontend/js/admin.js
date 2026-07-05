@@ -294,6 +294,7 @@ function normalizeCsvRows(type, rows) {
       job_cd: pick(row, ["job_cd", "job_code", "contractor_id", "contract_id"]),
       engineer_id: pick(row, ["engineer_id", "engineer", "engineer_incharge", "engineer_rinl_id", "eic_id"]),
       contractor_name: pick(row, ["contractor_name", "contractor", "name"]),
+      contractor_email: pick(row, ["contractor_email", "email", "email_id", "mail", "mail_id"]),
       contractor_phone: pick(row, ["contractor_phone", "phone", "mobile"]),
       work_area: pick(row, ["work_area", "company", "area"]),
       dept_cd: pick(row, ["dept_cd", "department", "dept"]),
@@ -321,7 +322,7 @@ function normalizeCsvRows(type, rows) {
     return rows.map((row) => ({
       adhar_id: pick(row, ["adhar_id", "aadhaar_id", "aadhar_id", "worker_id", "worker_rinl_id", "rinl_id", "rinl-id", "id"]),
       worker_name: pick(row, ["worker_name", "name", "employee_name", "person_name", "full_name"]),
-      mobile: pick(row, ["mobile", "mobile_number", "worker_mobile", "phone", "phone_number", "contact", "contact_number"]),
+      email: pick(row, ["email", "email_id", "mail", "mail_id", "worker_email"]),
       job_cd: pick(row, ["job_cd", "job_code", "job", "job_id", "contractor_id", "contract_id", "contract_code", "contract"]),
       supervisor_id: pick(row, ["supervisor_id", "supervisor id", "supervisor", "supervisor_rinl_id", "supervisor rinl id", "supervisor_rinl", "supervisor_code", "supervisor code"]),
       worker_desig: pick(row, ["worker_desig", "worker desig", "designation", "designation_name", "designation name", "worker_designation", "worker designation", "category"]),
@@ -376,6 +377,17 @@ function detectTableType(rows, fileName = "") {
   const has = (...names) => names.some((name) => keys.has(normalizeKey(name)));
   const lowerName = fileName.toLowerCase();
 
+  if (has("muster_month", "weekly_off", "holidays", "leaves")
+    || (has("present", "absent") && has("worker_id", "adhar_id", "aadhaar_id", "aadhar_id"))
+    || lowerName.includes("muster")
+    || lowerName.includes("attendance")) {
+    return "muster";
+  }
+
+  if (has(...EXPENSE_KEYS, ...RATE_KEYS, "days_present", "present_days", "wage_month") || lowerName.includes("wage") || lowerName.includes("payroll")) {
+    return "wages";
+  }
+
   if (has("supervisor_id", "supervisor_name", "supervisor_rinl_id") || lowerName.includes("supervisor")) {
     return "supervisors";
   }
@@ -384,15 +396,7 @@ function detectTableType(rows, fileName = "") {
     return "workers";
   }
 
-  if (has(...EXPENSE_KEYS, ...RATE_KEYS, "days_present", "present_days", "wage_month") || lowerName.includes("wage") || lowerName.includes("payroll")) {
-    return "wages";
-  }
-
-  if (has("present", "absent", "weekly_off", "muster_month") || lowerName.includes("muster") || lowerName.includes("attendance")) {
-    return "muster";
-  }
-
-  if (has("contractor_name", "contractor_phone", "job_cd", "job_code", "contract_id", "work_area") || lowerName.includes("contract")) {
+  if (has("contractor_name", "contractor_email", "contractor_phone", "job_cd", "job_code", "contract_id", "work_area") || lowerName.includes("contract")) {
     return "contracts";
   }
 
@@ -409,6 +413,27 @@ function saveUploadedTable(type, rows) {
 
 function readUploadedTable(type) {
   return JSON.parse(localStorage.getItem(`adminUploaded_${type}`) || "[]");
+}
+
+function reportMonthFromRows(rows, type) {
+  if (!["muster", "wages"].includes(type)) return "";
+  const key = type === "wages" ? "wage_month" : "muster_month";
+  const row = rows.find((item) => item?.[key] || item?.month || item?.date);
+  const value = String(row?.[key] || row?.month || row?.date || "").trim();
+  const match = value.match(/^(\d{4})-(\d{2})/);
+  return match ? `${match[1]}-${match[2]}` : "";
+}
+
+function refreshUploadedExpenseReport(type, rows) {
+  if (!["muster", "wages"].includes(type)) return;
+  const uploadedMonth = reportMonthFromRows(rows, type);
+  if (uploadedMonth && !expenseMonth.value) {
+    expenseMonth.value = uploadedMonth;
+  }
+  const month = expenseMonth.value || uploadedMonth;
+  if (!month) return;
+  const report = buildUploadedExpenseReport(month);
+  renderExpenseTable(report.jobs, report.total_expense);
 }
 
 function readSavedWageRates() {
@@ -456,13 +481,25 @@ function clearAdminDashboardCache() {
 }
 
 function applyUploadedStats() {
-  document.getElementById("totalUsers").textContent = users.length;
-  document.getElementById("totalContracts").textContent = contracts.length;
-  document.getElementById("totalWorkers").textContent = workers.length;
-  document.getElementById("totalMuster").textContent = muster.length;
-  const uploadedWageRows = wageExpenses.length ? wageExpenses : readUploadedTable("wages");
-  const uploadedWageTotal = uploadedWageRows.reduce((sum, row) => sum + Number(row.wage_expense || 0), 0);
-  if (uploadedWageTotal) document.getElementById("totalWage").textContent = formatMoney(uploadedWageTotal);
+  const uploadedUsers = readUploadedTable("users");
+  const uploadedEngineers = readUploadedTable("engineers");
+  const uploadedContracts = readUploadedTable("contracts");
+  const uploadedWorkers = readUploadedTable("workers");
+  const uploadedMuster = readUploadedTable("muster");
+
+  const userCount = users.length + engineers.length || uploadedUsers.length + uploadedEngineers.length;
+  const contractCount = contracts.length || uploadedContracts.length;
+  const workerCount = workers.length || uploadedWorkers.length;
+  const musterCount = muster.length || uploadedMuster.length;
+
+  if (userCount) document.getElementById("totalUsers").textContent = userCount;
+  if (contractCount) document.getElementById("totalContracts").textContent = contractCount;
+  if (workerCount) document.getElementById("totalWorkers").textContent = workerCount;
+  if (musterCount) document.getElementById("totalMuster").textContent = musterCount;
+  const uploadedWageTotal = calculateUploadedWageTotal();
+  if (uploadedWageTotal) {
+    document.getElementById("totalWage").textContent = formatMoney(uploadedWageTotal);
+  }
 }
 
 function setupDropZone(zone, onFiles) {
@@ -567,6 +604,7 @@ function writeContractOverride(jobCode, data) {
     job_cd: data.job_cd || data.contractor_id || jobCode,
     contractor_name: data.contractor_name || data.name || "",
     engineer_id: data.engineer_id || data.engineerId || "",
+    contractor_email: data.contractor_email || data.email || "",
     contractor_phone: data.contractor_phone || data.mobile || "",
     work_area: data.work_area || data.company || "",
     dept_cd: data.dept_cd || "-",
@@ -624,7 +662,7 @@ function writeWorkerEditOverride(workerId, data) {
   overrides[normalizeLookupValue(workerId)] = {
     adhar_id: data.adhar_id || data.worker_id || workerId,
     worker_name: data.worker_name || data.name || "",
-    mobile: data.mobile || data.worker_mobile || data.phone || data.phone_number || "",
+    email: data.email || data.worker_email || data.mail || "",
     job_cd: data.job_cd || data.contractor_id || "",
     supervisor_id: data.supervisor_id || data.supervisorId || "",
     worker_desig: data.worker_desig || data.category || "",
@@ -645,14 +683,13 @@ function removeWorkerEditOverride(workerId) {
   localStorage.setItem(WORKER_EDIT_KEY, JSON.stringify(overrides));
 }
 
-function workerMobileValue(worker) {
-  return worker?.mobile
-    || worker?.worker_mobile
-    || worker?.mobile_number
-    || worker?.phone
-    || worker?.phone_number
-    || worker?.contact
-    || worker?.contact_number
+function workerEmailValue(worker) {
+  return worker?.email
+    || worker?.worker_email
+    || worker?.email_id
+    || worker?.mail
+    || worker?.mail_id
+    || worker?.mobile
     || "";
 }
 
@@ -895,7 +932,8 @@ async function importDataFile(file, preferredType = "auto") {
     const parsed = isCsv
       ? parseCsv(await file.text())
       : parseExcel(await file.arrayBuffer());
-    const type = preferredType === "auto" ? detectTableType(parsed, file.name) : preferredType;
+    const detectedType = detectTableType(parsed, file.name);
+    const type = preferredType === "auto" || detectedType === "muster" ? detectedType : preferredType;
     const rows = normalizeCsvRows(type, parsed);
     const syncedRows = await syncImportedRows(type, rows);
 
@@ -922,6 +960,7 @@ async function importDataFile(file, preferredType = "auto") {
     }
 
     saveUploadedTable(type, getTableRows(type));
+    refreshUploadedExpenseReport(type, syncedRows);
     applyUploadedStats();
     return { ok: true, name: file.name, type, count: rows.length };
   } catch (err) {
@@ -1060,7 +1099,7 @@ const CSV_EXPORTS = {
       ["Category", "category"],
       ["Contractor ID", "contractor_id"],
       ["Supervisor ID", "supervisor_id"],
-      ["Mobile", "mobile"],
+      ["Email", "email"],
       ["Gender", "gender"],
       ["Daily Wage", "daily_wage"],
       ["Status", "status"],
@@ -1365,7 +1404,7 @@ function buildUploadedExpenseReport(month) {
   });
 
   uploadedWages
-    .filter((entry) => isSameExpenseMonth(entry.wage_month || entry.muster_month || entry.month || entry.date, month))
+    .filter((entry) => !month || isSameExpenseMonth(entry.wage_month || entry.muster_month || entry.month || entry.date, month))
     .forEach((entry) => {
       addExpenseGroup(groups, contractByJob, {
         job_cd: entry.job_cd,
@@ -1379,12 +1418,12 @@ function buildUploadedExpenseReport(month) {
     });
 
   uploadedMuster
-    .filter((entry) => isSameExpenseMonth(entry.muster_month, month))
+    .filter((entry) => !month || isSameExpenseMonth(entry.muster_month, month))
     .forEach((entry) => {
       const worker = workerById.get(normalizeLookupValue(entry.adhar_id || entry.worker_id || entry.worker_name)) || {};
       const jobCode = entry.job_cd || worker.job_cd || "-";
       const presentDays = toNumber(entry.present || entry.days_present);
-      const dailyWage = toNumber(worker.daily_wage || worker.wage_rate || entry.daily_wage || entry.wage_rate);
+      const dailyWage = workerDailyWage(worker, entry);
       addExpenseGroup(groups, contractByJob, {
         job_cd: jobCode,
         contractor_name: entry.contractor_name,
@@ -1408,6 +1447,22 @@ function buildUploadedExpenseReport(month) {
     jobs,
     total_expense: jobs.reduce((sum, job) => sum + Number(job.wage_expense || 0), 0),
   };
+}
+
+function calculateUploadedWageTotal() {
+  return buildUploadedExpenseReport("").total_expense;
+}
+
+function savedWageRateForSkill(skill) {
+  const normalized = normalizeWageCategory(skill);
+  if (!normalized) return 0;
+  const rates = readSavedWageRates();
+  return toNumber(rates[normalized]);
+}
+
+function workerDailyWage(worker = {}, entry = {}) {
+  return toNumber(worker.daily_wage || worker.dailyWage || worker.wage_rate || entry.daily_wage || entry.wage_rate)
+    || savedWageRateForSkill(worker.worker_skill || worker.category || worker.worker_desig || entry.worker_skill || entry.category);
 }
 
 function addExpenseGroup(groups, contractByJob, entry) {
@@ -1479,6 +1534,9 @@ function renderExpenseTable(jobs, total) {
   `).join("");
 
   totalExpense.textContent = formatMoney(total);
+  if (Number(total || 0) > 0) {
+    document.getElementById("totalWage").textContent = formatMoney(total);
+  }
 }
 
 function formatMoney(value) {
@@ -1504,17 +1562,20 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
 });
 
 async function loadStats() {
-  if (hasUploadedData()) {
-    applyUploadedStats();
-    return;
-  }
-
-  const data = await fetchJson(`${API_BASE}/admin/stats`);
+  try {
+    const data = await fetchJson(`${API_BASE}/admin/stats`);
     document.getElementById("totalUsers").textContent = data.total_users;
     document.getElementById("totalContracts").textContent = data.total_contracts;
     document.getElementById("totalWorkers").textContent = data.total_workers;
-    document.getElementById("totalMuster").textContent = readUploadedTable("muster").length || muster.length || 0;
+    document.getElementById("totalMuster").textContent = data.total_muster;
     document.getElementById("totalWage").textContent = formatMoney(data.total_wage);
+  } catch (error) {
+    console.error("Stats failed", error);
+  }
+
+  if (hasUploadedData()) {
+    applyUploadedStats();
+  }
 }
 
 async function loadUsers() {
@@ -1902,6 +1963,7 @@ function renderContracts() {
       <td>${esc(c.job_cd || "-")}</td>
       <td>${esc(c.engineer_id || c.engineerId || "-")}</td>
       <td>${esc(c.contractor_name || "-")}</td>
+      <td>${esc(c.contractor_email || c.email || "-")}</td>
       <td>${esc(c.contractor_phone || "-")}</td>
       <td>${esc(c.work_area || "-")}</td>
       <td>${esc(c.dept_cd || "-")}</td>
@@ -1914,7 +1976,7 @@ function renderContracts() {
         </div>
       </td>
     </tr>
-  `).join("") : `<tr><td colspan="9">${adminSearchText ? "No contractors match your search." : "No contractors found."}</td></tr>`;
+  `).join("") : `<tr><td colspan="10">${adminSearchText ? "No contractors match your search." : "No contractors found."}</td></tr>`;
 }
 
 function viewContractorDetails(jobCode) {
@@ -1925,6 +1987,7 @@ function viewContractorDetails(jobCode) {
     ["Job Code", contractor.job_cd || contractor.contractor_id],
     ["Contractor", contractor.contractor_name || contractor.name],
     ["Assigned Engineer ID", contractor.engineer_id || contractor.engineerId],
+    ["Email", contractor.contractor_email || contractor.email],
     ["Phone", contractor.contractor_phone || contractor.mobile],
     ["Work Area", contractor.work_area || contractor.company],
     ["Department", contractor.dept_cd],
@@ -1941,6 +2004,7 @@ async function saveContractor(event) {
     job_cd: jobCodeInput.value.trim(),
     contractor_name: document.getElementById("contractName").value.trim(),
     engineer_id: document.getElementById("contractEngineerId").value.trim(),
+    contractor_email: document.getElementById("contractEmail").value.trim(),
     contractor_phone: document.getElementById("contractPhone").value.trim(),
     work_area: document.getElementById("contractWorkArea").value.trim(),
     dept_cd: document.getElementById("contractDept").value.trim(),
@@ -1950,6 +2014,11 @@ async function saveContractor(event) {
 
   if (!payload.job_cd || !payload.contractor_name) {
     contractFormStatus.textContent = "Job code and contractor name are required.";
+    return;
+  }
+
+  if (payload.contractor_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contractor_email)) {
+    contractFormStatus.textContent = "Enter a valid contractor email address.";
     return;
   }
 
@@ -2002,6 +2071,7 @@ function editContractor(jobCode) {
   document.getElementById("contractJobCode").readOnly = true;
   document.getElementById("contractName").value = contractor.contractor_name || contractor.name || "";
   document.getElementById("contractEngineerId").value = contractor.engineer_id || contractor.engineerId || "";
+  document.getElementById("contractEmail").value = contractor.contractor_email || contractor.email || "";
   document.getElementById("contractPhone").value = contractor.contractor_phone || contractor.mobile || "";
   document.getElementById("contractWorkArea").value = contractor.work_area || contractor.company || "";
   document.getElementById("contractDept").value = contractor.dept_cd === "-" ? "" : contractor.dept_cd || "";
@@ -2257,7 +2327,7 @@ function renderWorkers() {
         <td>${esc(w.rinl_id || w.rinlId || w.adhar_id || "-")}</td>
         <td>${esc(w.adhar_id || "-")}</td>
         <td>${esc(w.worker_name || "-")}</td>
-        <td>${esc(workerMobileValue(w) || "-")}</td>
+        <td>${esc(workerEmailValue(w) || "-")}</td>
         <td>${esc(w.job_cd || w.contractor_id || "-")}</td>
         <td>${esc(w.supervisor_id || w.supervisorId || "-")}</td>
         <td>${esc(w.worker_desig || "-")}</td>
@@ -2295,7 +2365,7 @@ function viewWorkerDetails(workerId) {
     ["Present", formatCount(stats.present)],
     ["Absent", formatCount(stats.absent)],
     ["Overtime", formatCount(stats.overtime)],
-    ["Mobile", workerMobileValue(worker)],
+    ["Email", workerEmailValue(worker)],
     ["Daily Wage", worker.daily_wage]
   ]);
 }
@@ -2306,7 +2376,7 @@ async function saveWorker(event) {
   const payload = {
     adhar_id: document.getElementById("workerAadhaar").value.trim(),
     worker_name: document.getElementById("workerNameInput").value.trim(),
-    mobile: document.getElementById("workerMobile").value.trim(),
+    email: document.getElementById("workerEmail").value.trim(),
     job_cd: document.getElementById("workerJobCode").value.trim(),
     supervisor_id: document.getElementById("workerSupervisorId").value.trim(),
     worker_desig: document.getElementById("workerDesignation").value.trim(),
@@ -2320,6 +2390,11 @@ async function saveWorker(event) {
 
   if (!payload.adhar_id || !payload.worker_name || !payload.worker_skill) {
     workerFormStatus.textContent = "Worker ID, name, and skill are required.";
+    return;
+  }
+
+  if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+    workerFormStatus.textContent = "Enter a valid worker email address.";
     return;
   }
 
@@ -2362,7 +2437,7 @@ function editWorker(workerId) {
   document.getElementById("workerAadhaar").value = worker.adhar_id || "";
   document.getElementById("workerAadhaar").readOnly = true;
   document.getElementById("workerNameInput").value = worker.worker_name || worker.name || "";
-  document.getElementById("workerMobile").value = workerMobileValue(worker);
+  document.getElementById("workerEmail").value = workerEmailValue(worker);
   document.getElementById("workerJobCode").value = worker.job_cd || worker.contractor_id || "";
   document.getElementById("workerSupervisorId").value = worker.supervisor_id || worker.supervisorId || "";
   document.getElementById("workerDesignation").value = worker.worker_desig || worker.category || "";
@@ -2501,6 +2576,7 @@ async function updateRate(skill) {
   }
   alert("Wage rate updated");
   loadRates();
+  applyUploadedStats();
   loadStats();
 }
 

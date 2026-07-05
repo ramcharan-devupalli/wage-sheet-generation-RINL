@@ -20,7 +20,7 @@
     .app { min-height: 100vh; display: grid; grid-template-columns: 284px minmax(0, 1fr); }
     .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 20px 14px; background: #fff; border-right: 1px solid var(--line); }
     .brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 18px; }
-    .brand-mark { width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--blue), var(--red)); font-weight: 900; letter-spacing: .03em; }
+    .brand-mark { width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center; color: #fff; background: #0041e0; font-weight: 900; letter-spacing: .03em; }
     .brand h1 { margin: 0; font-size: 1rem; line-height: 1.1; }
     .brand span { color: var(--muted); font-size: .76rem; }
     .user-badge { margin: 0 6px 16px; padding: 12px; border: 1px solid #dfe7f1; border-radius: 8px; background: #f8fbff; display: flex; align-items: center; gap: 10px; }

@@ -39,7 +39,7 @@
   <main class="main">
     <header class="topbar">
       <div>
-        <h1 id="pageTitle">Admin Dashboard Home</h1>
+        <h1 id="pageTitle">Admin Dashboard</h1>
         <p>High-level control room for contractors, workers, muster and wage sheets.</p>
       </div>
       <input id="globalSearch" placeholder="Search users, contracts, workers..." />
@@ -168,7 +168,7 @@
         <table>
           <thead>
             <tr>
-              <th>RINL-ID</th><th>contractor_id</th><th>engineer_id</th><th>Contractor</th><th>Phone</th><th>Work Area</th><th>Dept</th><th>Period</th><th>Action</th>
+              <th>RINL-ID</th><th>contractor_id</th><th>engineer_id</th><th>Contractor</th><th>Email</th><th>Phone</th><th>Work Area</th><th>Dept</th><th>Period</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="contractsBody"></tbody>
@@ -196,6 +196,10 @@
           <label>
             Phone
             <input type="tel" id="contractPhone" placeholder="9876543210" />
+          </label>
+          <label>
+            Email
+            <input type="email" id="contractEmail" placeholder="contractor@vizagsteel.com" />
           </label>
           <label>
             Work Area
@@ -298,7 +302,7 @@
         <table>
           <thead>
             <tr>
-              <th>RINL-ID</th><th>Worker ID</th><th>Name</th><th>Mobile</th><th>contractor_id</th><th>supervisor_id</th><th>Designation</th><th>Skill</th><th>Gender</th><th>Present</th><th>Absent</th><th>Overtime</th><th>Daily Wage</th><th>Action</th>
+              <th>RINL-ID</th><th>Worker ID</th><th>Name</th><th>Email</th><th>contractor_id</th><th>supervisor_id</th><th>Designation</th><th>Skill</th><th>Gender</th><th>Present</th><th>Absent</th><th>Overtime</th><th>Daily Wage</th><th>Action</th>
             </tr>
           </thead>
           <tbody id="workersBody"></tbody>
@@ -320,8 +324,8 @@
             <input type="text" id="workerNameInput" placeholder="Worker name" required />
           </label>
           <label>
-            Mobile
-            <input type="tel" id="workerMobile" placeholder="9876543210" maxlength="10" />
+            Email
+            <input type="email" id="workerEmail" placeholder="worker@vizagsteel.com" />
           </label>
           <label>
             contractor_id

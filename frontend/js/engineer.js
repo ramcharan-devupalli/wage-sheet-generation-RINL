@@ -142,7 +142,7 @@ function filterGlobalRows(rows) {
   return globalSearchText ? rows.filter((row) => matchesGlobalSearch(row)) : rows;
 }
 
-function addAlert(title, text, tone = "#176b87") {
+function addAlert(title, text, tone = "#817870") {
   alerts.unshift({ title, text, tone });
   renderAlerts();
 }
@@ -192,7 +192,7 @@ function syncSubmittedWageSheets() {
       alerts.unshift({
         title: "Wage sheet submitted",
         text: `${submission.contractor} submitted ${submission.month} wage sheet for engineer review.`,
-        tone: "#f59e0b",
+        tone: "#9f948b",
         wageSubmissionId: submission.id,
         contractor: submission.contractor
       });
@@ -208,7 +208,7 @@ function syncAdminSummaryDecisions() {
     alerts.unshift({
       title: "Admin summary approved",
       text: `Admin approved ${summary.period} summary. Note: ${summary.adminNote || "No note added."}`,
-      tone: "#16835f",
+      tone: "#817870",
       summarySubmissionId: summary.id
     });
   });
@@ -533,7 +533,7 @@ function extractDashboardData(rows) {
   replaceArray(categoryData, Array.from(categoryMap.entries()).map(([label, value], index) => ({
     label,
     value,
-    color: ["#147dff", "#10a4a6", "#f59e0b", "#7c3cff", "#5fb0ff", "#ff2f8a"][index % 6],
+    color: ["#5a514b", "#817870", "#9f948b", "#c7beb5", "#d8d0c7", "#786b62"][index % 6],
   })));
   replaceArray(dailyAttendance, Array.from(dateMap.entries()).slice(-7).map(([label, value]) => ({ label, value })));
   replaceArray(monthlyAttendance, Array.from(monthMap.entries()).slice(-6).map(([label, item]) => ({
@@ -602,7 +602,7 @@ async function handleDocumentUpload(file) {
     renderDashboard();
     switchSection("overview");
     document.getElementById("uploadMeta").textContent = `${file.name}: ${rows.length} rows extracted`;
-    addAlert("Document uploaded", `${file.name} extracted ${rows.length} row(s) into the dashboard.`, "#16835f");
+    addAlert("Document uploaded", `${file.name} extracted ${rows.length} row(s) into the dashboard.`, "#817870");
     showToast("File uploaded and dashboard updated.");
   } catch (error) {
     console.error(error);
@@ -613,21 +613,15 @@ async function handleDocumentUpload(file) {
 function renderMetrics() {
   const totalWorkers = contractors.reduce((sum, item) => sum + item.workers, 0);
   const totalSupervisors = scopedSupervisors.length || contractors.reduce((sum, item) => sum + Number(item.supervisors || 0), 0);
-  const presentToday = contractors.reduce((sum, item) => sum + item.present, 0);
-  const absentToday = contractors.reduce((sum, item) => sum + item.absent, 0);
-  const overtimeWorkers = contractors.reduce((sum, item) => sum + item.overtime, 0);
   const wageLiability = wageSheets.reduce((sum, item) => sum + item.amount, 0);
   const complianceIssues = complianceItems.filter((item) => item.tone !== "good").length;
 
   const metrics = [
-    { label: "Total Contractors", value: contractors.length, note: "Active this month", tone: "#147dff" },
-    { label: "Supervisors", value: totalSupervisors, note: "Under assigned contractors", tone: "#5fb0ff" },
+    { label: "Total Contractors", value: contractors.length, note: "Active this month", tone: "#0f4c97" },
+    { label: "Supervisors", value: totalSupervisors, note: "Under assigned contractors", tone: "#14b8a6" },
     { label: "Total Workers", value: totalWorkers, note: "Approved workforce", tone: "#f59e0b" },
-    { label: "Present Today", value: presentToday, note: "Across all contractors", tone: "#10a4a6" },
-    { label: "Absent Today", value: absentToday, note: "Needs verification", tone: "#ff2f8a" },
-    { label: "Overtime Workers", value: overtimeWorkers, note: "Workers with OT entries", tone: "#7c3cff" },
-    { label: "Wage Liability", value: formatMoney(wageLiability), note: "Current month", tone: "#147dff" },
-    { label: "Compliance Issues", value: complianceIssues, note: "Open exceptions", tone: "#ff2f8a" },
+    { label: "Wage Liability", value: formatMoney(wageLiability), note: "Current month", tone: "#14b8a6" },
+    { label: "Compliance Issues", value: complianceIssues, note: "Open exceptions", tone: "#f59e0b" },
   ];
 
   document.getElementById("metricGrid").innerHTML = metrics.map((item) => `
@@ -843,7 +837,7 @@ function submitEngineerSummary(event) {
 
   summaries.unshift(payload);
   writeEngineerSummaries(summaries);
-  addAlert("Summary submitted to admin", `${payload.period} operational and financial summary was sent to Admin for approval.`, "#176b87");
+  addAlert("Summary submitted to admin", `${payload.period} operational and financial summary was sent to Admin for approval.`, "#817870");
   updateSummarySubmitStatus();
   showToast("Operational and financial summary submitted to Admin.");
 }
@@ -1179,7 +1173,7 @@ function handleContractorAction(action, contractorName) {
 
   if (action === "contractor-approve") {
     contractor.status = "Approved";
-    addAlert("Contractor submission approved", `${contractor.name} submission was approved by Engineer In-Charge.`, "#16835f");
+    addAlert("Contractor submission approved", `${contractor.name} submission was approved by Engineer In-Charge.`, "#817870");
     rerenderTables();
     showToast(`${contractor.name} submission approved.`);
     return;
@@ -1187,7 +1181,7 @@ function handleContractorAction(action, contractorName) {
 
   if (action === "contractor-reject") {
     contractor.status = "Rejected";
-    addAlert("Contractor submission rejected", `${contractor.name} submission was rejected and returned for correction.`, "#c03d3d");
+    addAlert("Contractor submission rejected", `${contractor.name} submission was rejected and returned for correction.`, "#786b62");
     rerenderTables();
     showToast(`${contractor.name} submission rejected.`);
   }
@@ -1205,7 +1199,7 @@ function handleWageAction(action, contractorName) {
 
   if (action === "wage-verify") {
     wage.status = "Calculations Verified";
-    addAlert("Wage calculations verified", `${contractorName} wage sheet calculations were verified.`, "#176b87");
+    addAlert("Wage calculations verified", `${contractorName} wage sheet calculations were verified.`, "#817870");
     renderWageRows();
     renderMetrics();
     showToast(`${contractorName} calculations verified.`);
@@ -1218,7 +1212,7 @@ function handleWageAction(action, contractorName) {
       return;
     }
     wage.status = "Approved";
-    addAlert("Wage sheet approved", `${contractorName} wage sheet was approved for payroll processing.`, "#16835f");
+    addAlert("Wage sheet approved", `${contractorName} wage sheet was approved for payroll processing.`, "#817870");
     renderWageRows();
     renderMetrics();
     showToast(`${contractorName} wage sheet approved.`);
@@ -1231,7 +1225,7 @@ function handleWageAction(action, contractorName) {
       return;
     }
     wage.status = "Rejected";
-    addAlert("Wage sheet rejected", `${contractorName} wage sheet was rejected with correction required.`, "#c03d3d");
+    addAlert("Wage sheet rejected", `${contractorName} wage sheet was rejected with correction required.`, "#786b62");
     renderWageRows();
     renderMetrics();
     showToast(`${contractorName} wage sheet rejected.`);
@@ -1261,7 +1255,7 @@ function reviewSubmittedWageSheet(submissionId, decision) {
   if (alert) {
     alert.title = approved ? "Wage sheet accepted" : "Wage sheet rejected";
     alert.text = `${submissions[index].contractor} wage sheet was ${approved ? "Accepted" : "Rejected"} by Engineer-In-Charge.`;
-    alert.tone = approved ? "#16835f" : "#c03d3d";
+    alert.tone = approved ? "#817870" : "#786b62";
   }
 
   renderAlerts();
@@ -1288,7 +1282,7 @@ function handleVerificationAction(button) {
   } else if (text.includes("Flag suspicious")) {
     const mismatch = attendanceItems.find((item) => item.match === "Mismatch") || attendanceItems[0];
     mismatch.status = "Flagged";
-    addAlert("Suspicious attendance flagged", `${mismatch.contractor} attendance was flagged for manual review.`, "#c03d3d");
+    addAlert("Suspicious attendance flagged", `${mismatch.contractor} attendance was flagged for manual review.`, "#786b62");
     showToast("Suspicious attendance flagged.");
   } else if (text.includes("Compare attendance")) {
     attendanceItems.forEach((item) => {
@@ -1370,7 +1364,7 @@ function bindEvents() {
       wage.remarks = value;
       wage.status = value ? "Remarks Added" : wage.status;
       renderWageRows();
-      addAlert("Remarks saved", `Remarks were saved for ${activeRemarksContractor}.`, "#176b87");
+      addAlert("Remarks saved", `Remarks were saved for ${activeRemarksContractor}.`, "#817870");
     }
     showToast(value ? "Remarks saved." : "Remarks saved without additional notes.");
     document.getElementById("remarksText").value = "";
@@ -1466,7 +1460,7 @@ function loadScopedEngineerData(data) {
   replaceArray(categoryData, Array.from(categoryCounts.entries()).map(([label, value], index) => ({
     label,
     value,
-    color: ["#147dff", "#10a4a6", "#f59e0b", "#7c3cff", "#5fb0ff", "#ff2f8a"][index % 6],
+    color: ["#5a514b", "#817870", "#9f948b", "#c7beb5", "#d8d0c7", "#786b62"][index % 6],
   })));
 
   replaceArray(attendanceItems, dbAttendance.map((row) => ({
@@ -1538,14 +1532,14 @@ async function loadEngineerDashboard() {
     loadScopedEngineerData(data);
     const assignmentMessage = engineerAssignmentMessage(data);
     alerts.unshift(assignmentMessage
-      ? { title: "No contractors assigned", text: assignmentMessage, tone: "#c03d3d" }
-      : { title: "Database data loaded", text: "Assigned contractor records loaded from PostgreSQL.", tone: "#16835f" });
+      ? { title: "No contractors assigned", text: assignmentMessage, tone: "#786b62" }
+      : { title: "Database data loaded", text: "Assigned contractor records loaded from PostgreSQL.", tone: "#817870" });
   } catch (error) {
     console.error(error);
     alerts.unshift({
       title: "Database load failed",
       text: `${error.message || "Could not reach the backend server."} Make sure the backend is running at http://localhost:3000 or http://127.0.0.1:3000, then refresh this page.`,
-      tone: "#c03d3d"
+      tone: "#786b62"
     });
   } finally {
     renderDashboard();
