@@ -9,6 +9,12 @@ function gmailAppPassword() {
   return envValue('EMAIL_PASSWORD').replace(/\s+/g, '');
 }
 
+console.log("========== MAIL CONFIG ==========");
+console.log("EMAIL:", envValue("EMAIL"));
+console.log("PASSWORD EXISTS:", !!process.env.EMAIL_PASSWORD);
+console.log("PASSWORD LENGTH:", gmailAppPassword().length);
+console.log("=================================");
+
 module.exports = {
   gmailUser: envValue('EMAIL'),
   gmailPass: gmailAppPassword(),
