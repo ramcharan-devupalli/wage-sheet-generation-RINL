@@ -1,8 +1,4 @@
-    const WORKER_API_BASE = ["file:", "http:"].includes(window.location.protocol)
-      && ["", "127.0.0.1", "localhost"].includes(window.location.hostname)
-      && window.location.port !== "3000"
-      ? "http://localhost:3000"
-      : "";
+    const WORKER_API_BASE = "https://wage-sheet-generation-rinl-production.up.railway.app";
 
     const savedSession = typeof applySessionToPage === "function"
       ? applySessionToPage("worker.html")

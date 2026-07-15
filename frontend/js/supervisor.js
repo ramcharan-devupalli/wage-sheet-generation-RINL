@@ -4,11 +4,7 @@ const issues = [];
 const notifications = [];
 let leaveRequests = [];
 const LOCAL_LEAVE_KEY = "rinl_worker_leave_requests";
-const SUPERVISOR_API_BASE = ["file:", "http:"].includes(window.location.protocol)
-  && ["", "127.0.0.1", "localhost"].includes(window.location.hostname)
-  && window.location.port !== "3000"
-  ? "http://localhost:3000"
-  : "";
+const SUPERVISOR_API_BASE = "https://wage-sheet-generation-rinl-production.up.railway.app";
 
 const workAreas = ['Blast Furnace', 'Rolling Mill', 'Maintenance', 'Material Handling', 'Loading Yard'];
 let selectedWorkerId = null;

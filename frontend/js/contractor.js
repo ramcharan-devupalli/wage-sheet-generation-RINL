@@ -9,11 +9,7 @@ if (savedSession?.employee) {
 }
 if (typeof bindLogoutButtons === "function") bindLogoutButtons();
 
-const CONTRACTOR_API_BASE = ["file:", "http:"].includes(window.location.protocol)
-  && ["", "127.0.0.1", "localhost"].includes(window.location.hostname)
-  && window.location.port !== "3000"
-  ? "http://localhost:3000"
-  : "";
+const CONTRACTOR_API_BASE = "https://wage-sheet-generation-rinl-production.up.railway.app";
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const LOCAL_LEAVE_KEY = "rinl_worker_leave_requests";
 const LOCAL_WAGE_KEY = "rinl_wage_sheet_submissions";

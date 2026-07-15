@@ -24,12 +24,9 @@ const savedSession = typeof applySessionToPage === "function"
   : (typeof currentSession === "function" ? currentSession() : null);
 if (typeof bindLogoutButtons === "function") bindLogoutButtons();
 
-const ENGINEER_API_BASES = (() => {
-  const bases = [];
-  if (window.location.protocol !== "file:" && window.location.port === "3000") bases.push("");
-  bases.push("http://localhost:3000", "http://127.0.0.1:3000");
-  return Array.from(new Set(bases));
-})();
+const ENGINEER_API_BASES = [
+  "https://wage-sheet-generation-rinl-production.up.railway.app"
+];
 
 function sessionHeaders() {
   const employee = savedSession?.employee || {};

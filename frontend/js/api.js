@@ -3,7 +3,7 @@ const API_BASE_URLS = (() => {
     || ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
 
   if (!isLocalPage || window.location.port === '3000') return [window.location.origin];
-  return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  return ['https://wage-sheet-generation-rinl-production.up.railway.app'];
 })();
 
 async function apiRequest(path, options = {}) {
