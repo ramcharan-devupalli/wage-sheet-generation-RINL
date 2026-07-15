@@ -19,10 +19,7 @@ const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
 
-console.log("Current directory:", __dirname);
-console.log("Frontend path:", frontendPath);
-console.log("Frontend exists:", fs.existsSync(frontendPath));
-console.log("Index exists:", fs.existsSync(path.join(frontendPath, "index.html")));
+
 
 app.use(cors({
   origin: true,
