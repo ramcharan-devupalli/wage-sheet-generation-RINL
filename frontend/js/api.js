@@ -1,9 +1,13 @@
 const API_BASE_URLS = (() => {
-  const isLocalPage = window.location.protocol === 'file:'
-    || ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+  const isLocal =
+    window.location.protocol === "file:" ||
+    ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
-  if (!isLocalPage || window.location.port === '3000') return [window.location.origin];
-  return ['https://wage-sheet-generation-rinl-production.up.railway.app'];
+  return [
+    isLocal
+      ? "http://localhost:3000"
+      : "https://wage-sheet-generation-rinl-production.up.railway.app"
+  ];
 })();
 
 async function apiRequest(path, options = {}) {
