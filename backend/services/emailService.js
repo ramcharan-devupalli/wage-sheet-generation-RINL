@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const mailConfig = require('../config/mailConfig');
 
-module.exports = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
   secure: true,
@@ -13,3 +13,14 @@ module.exports = nodemailer.createTransport({
   greetingTimeout: 30000,
   socketTimeout: 60000
 });
+
+transporter.verify((err, success) => {
+  if (err) {
+    console.error("SMTP VERIFY ERROR:");
+    console.error(err);
+  } else {
+    console.log("SMTP VERIFIED");
+  }
+});
+
+module.exports = transporter;
