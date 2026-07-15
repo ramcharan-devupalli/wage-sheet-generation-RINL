@@ -1,8 +1,4 @@
-const API_BASE = ["file:", "http:"].includes(window.location.protocol)
-  && ["", "127.0.0.1", "localhost"].includes(window.location.hostname)
-  && window.location.port !== "3000"
-  ? "http://localhost:3000/api"
-  : "/api";
+const API_BASE = ["https://wage-sheet-generation-rinl-production.up.railway.app/api"]
 
 if (typeof applySessionToPage === "function") applySessionToPage("admin.html");
 if (typeof bindLogoutButtons === "function") bindLogoutButtons();

@@ -1,4 +1,4 @@
-const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = 'https://wage-sheet-generation-rinl-production.up.railway.app';
 
 let otpMethod = 'phone';
 let otpTarget = '';
