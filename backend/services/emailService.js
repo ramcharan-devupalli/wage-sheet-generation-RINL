@@ -3,8 +3,9 @@ const mailConfig = require('../config/mailConfig');
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: mailConfig.gmailUser,
     pass: mailConfig.gmailPass
