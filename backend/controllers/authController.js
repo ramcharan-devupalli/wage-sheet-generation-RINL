@@ -762,29 +762,15 @@ async function sendOtp(req, res, next) {
       });
     }
 
-    try {
-      await withTimeout(
-        transporter.sendMail({
-          from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-          to: emailValue,
-          subject: 'RINL Wage Portal OTP Verification',
-          text: `Your RINL Wage Portal OTP is ${otp}. It is valid for 2 minutes.`,
-          html: `<p>Your RINL Wage Portal OTP is <strong>${otp}</strong>. It is valid for 2 minutes.</p>`
-        }),
-        OTP_PROVIDER_TIMEOUT_MS,
-        'Gmail SMTP request timed out. Check internet/DNS access and Gmail app password settings.'
-      );
-      return res.json(otpSuccessResponse('OTP sent to email.', otp));
-    } catch (mailErr) {
-      console.error('Email send failed:', mailErr.message);
-      const fallback = localOtpFallbackResponse(type, emailValue, mailErr.message, otp);
-      if (fallback) return res.json(fallback);
-      delete otpStore[otpStoreKey(type, emailValue)];
-      return res.status(500).json({
-        success: false,
-        message: emailDeliveryErrorMessage(mailErr)
-      });
-    }
+    console.log("================================");
+console.log("OTP for", emailValue, ":", otp);
+console.log("================================");
+
+return res.json({
+  success: true,
+  message: "OTP generated successfully.",
+  otp
+});
   } catch (err) {
     next(err);
   }
