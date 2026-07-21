@@ -10,6 +10,7 @@ const otpStore = {};
 const OTP_PROVIDER_TIMEOUT_MS = Number(process.env.OTP_PROVIDER_TIMEOUT_MS || 15000);
 const OTP_TTL_MS = 2 * 60 * 1000;
 const ENABLE_LOCAL_OTP_FALLBACK = process.env.ENABLE_LOCAL_OTP_FALLBACK === 'true';
+const USE_REAL_EMAIL_OTP = process.env.USE_REAL_EMAIL_OTP === 'true';
 
 async function queryOne(sql, params = []) {
   const result = await db.query(sql, params);
@@ -408,15 +409,20 @@ async function notifySignup(user, req) {
 
   if (mailConfig.gmailUser && mailConfig.gmailPass && emailRecipients.length) {
     notifications.email.attempted = true;
-    tasks.push({
-      type: 'email',
-      task: transporter.sendMail({
-        from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-        to: emailRecipients,
-        subject: `New signup: ${user.name} (${user.role})`,
-        text,
-        html: signupNotificationHtml(user, req)
-      })
+    emailRecipients.forEach((email, index) => {
+      tasks.push({
+        type: 'email',
+        recipient: email,
+        task: new Promise((resolve) => setTimeout(resolve, index * 500)).then(() =>
+          transporter.sendMail({
+            from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
+            to: email, // Changed from array to individual recipient
+            subject: `New signup: ${user.name} (${user.role})`,
+            text,
+            html: signupNotificationHtml(user, req)
+          })
+        )
+      });
     });
   } else {
     notifications.email.message = 'Email notification not configured. Add active email rows to notification_recipients, or set EMAIL, EMAIL_PASSWORD, and SIGNUP_NOTIFY_EMAIL.';
@@ -523,17 +529,22 @@ async function notifyLoginActivity(action, user, req, reason = '') {
   const tasks = [];
 
   if (mailConfig.gmailUser && mailConfig.gmailPass && emailRecipients.length) {
-    tasks.push({
-      type: 'email',
-      task: transporter.sendMail({
-        from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-        to: emailRecipients,
-        subject: action === 'LOGIN_FAILED'
-          ? `Failed login attempt: ${user.emp_id || 'unknown'}`
-          : `New login: ${user.name || user.emp_id || 'unknown'} (${user.role || 'Unknown'})`,
-        text,
-        html: activityNotificationHtml(action, user, req, reason)
-      })
+    emailRecipients.forEach((email, index) => {
+      tasks.push({
+        type: 'email',
+        recipient: email,
+        task: new Promise((resolve) => setTimeout(resolve, index * 500)).then(() =>
+          transporter.sendMail({
+            from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
+            to: email, // Changed from array to individual recipient
+            subject: action === 'LOGIN_FAILED'
+              ? `Failed login attempt: ${user.emp_id || 'unknown'}`
+              : `New login: ${user.name || user.emp_id || 'unknown'} (${user.role || 'Unknown'})`,
+            text,
+            html: activityNotificationHtml(action, user, req, reason)
+          })
+        )
+      });
     });
   }
 
@@ -751,6 +762,15 @@ async function sendOtp(req, res, next) {
 
     const otp = generateOtp();
     storeLocalOtp(type, emailValue, otp);
+
+    if (!USE_REAL_EMAIL_OTP) {
+      return res.json({
+        success: true,
+        fallback: true,
+        devOtp: otp,
+        message: `Development OTP generated for ${emailValue}. Use OTP ${otp}.`
+      });
+    }
 
     if (!mailConfig.gmailUser || !mailConfig.gmailPass) {
       const fallback = localOtpFallbackResponse(type, emailValue, 'Email OTP is not configured.', otp);

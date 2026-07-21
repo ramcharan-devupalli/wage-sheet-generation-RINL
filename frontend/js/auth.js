@@ -182,6 +182,18 @@ function showOtpTarget(value) {
   target.textContent = maskOtpTarget(value);
 }
 
+function showDevOtp(otp) {
+  const box = document.getElementById('devOtpBox');
+  if (!box) return;
+  if (!otp) {
+    box.textContent = '';
+    box.classList.add('hidden');
+    return;
+  }
+  box.innerHTML = `Development OTP: <code>${otp}</code>`;
+  box.classList.remove('hidden');
+}
+
 async function doLogin() {
   localStorage.removeItem('rinlSession');
   const empId = document.getElementById('empId').value.trim();
@@ -223,6 +235,7 @@ async function doLogin() {
 
     if (data.success) {
       showOtpTarget(value);
+      showDevOtp(data.devOtp || '');
       clearOtpBoxes();
       showStep('otp');
       startOtpTimer();
@@ -456,6 +469,7 @@ async function resendOtp() {
     if (data.success) {
       document.getElementById('errOtp').classList.remove('show');
       showOtpTarget(otpTarget);
+      showDevOtp(data.devOtp || '');
       document.getElementById('otpTimerDisplay').style.color = 'var(--blue)';
       clearOtpBoxes();
       startOtpTimer();
@@ -476,6 +490,7 @@ async function resendOtp() {
 function goBack() {
   clearInterval(timerInterval);
   clearInterval(resendInterval);
+  showDevOtp('');
   showStep('login');
 }
 

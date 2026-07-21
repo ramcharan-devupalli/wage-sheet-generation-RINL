@@ -327,6 +327,8 @@
     .otp-info-title { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; color: var(--blue); margin-bottom: 3px; }
     .otp-info-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
     .otp-info-desc strong { color: var(--text); }
+    .dev-otp-box { margin-top: 0.75rem; padding: 0.7rem 0.85rem; border-radius: 6px; background: #fff8df; border: 1px solid #f1cf67; color: #7a5200; font-size: 13px; font-weight: 700; letter-spacing: 0.3px; }
+    .dev-otp-box code { font-family: 'Courier New', monospace; font-size: 15px; color: #5f3f00; }
     .otp-inputs { display: flex; gap: 10px; justify-content: center; margin: 0.5rem 0 1rem; }
     .otp-box { width: 48px; height: 54px; text-align: center; font-size: 22px; font-weight: 700; font-family: 'Rajdhani', sans-serif; color: var(--blue); background: var(--bg); border: 2px solid var(--border); border-radius: 8px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
     .otp-box:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,63,138,0.12); background: #fff; }
