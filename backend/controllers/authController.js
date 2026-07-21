@@ -522,59 +522,7 @@ function activityNotificationHtml(action, user, req, reason = '') {
 }
 
 async function notifyLoginActivity(action, user, req, reason = '') {
-  const text = activityNotificationText(action, user, req, reason);
-  const recipients = await getNotificationRecipients('login');
-  const emailRecipients = recipients.email.length ? recipients.email : splitRecipients(mailConfig.loginNotifyEmail);
-  const smsRecipients = recipients.sms.length ? recipients.sms : splitRecipients(twilioConfig.loginNotifyPhone);
-  const tasks = [];
-
-  if (mailConfig.gmailUser && mailConfig.gmailPass && emailRecipients.length) {
-    emailRecipients.forEach((email, index) => {
-      tasks.push({
-        type: 'email',
-        recipient: email,
-        task: new Promise((resolve) => setTimeout(resolve, index * 500)).then(() =>
-          transporter.sendMail({
-            from: `"RINL Wage Portal" <${mailConfig.gmailUser}>`,
-            to: email, // Changed from array to individual recipient
-            subject: action === 'LOGIN_FAILED'
-              ? `Failed login attempt: ${user.emp_id || 'unknown'}`
-              : `New login: ${user.name || user.emp_id || 'unknown'} (${user.role || 'Unknown'})`,
-            text,
-            html: activityNotificationHtml(action, user, req, reason)
-          })
-        )
-      });
-    });
-  }
-
-  if (twilioClient && smsRecipients.length && (twilioConfig.phoneNumber || twilioConfig.messagingServiceSid)) {
-    smsRecipients.forEach((phone) => {
-      const messageOptions = {
-        to: phone,
-        body: text
-      };
-
-      if (twilioConfig.messagingServiceSid) {
-        messageOptions.messagingServiceSid = twilioConfig.messagingServiceSid;
-      } else {
-        messageOptions.from = twilioConfig.phoneNumber;
-      }
-
-      tasks.push({ type: 'sms', recipient: phone, task: twilioClient.messages.create(messageOptions) });
-    });
-  }
-
-  if (!tasks.length) return;
-
-  const results = await Promise.allSettled(tasks.map((entry) => entry.task));
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      console.error(`${tasks[index].type.toUpperCase()} login notification failed${tasks[index].recipient ? ` for ${tasks[index].recipient}` : ''}:`, result.reason?.message || String(result.reason));
-    } else if (tasks[index].recipient) {
-      console.log(`${tasks[index].type.toUpperCase()} login notification sent to ${tasks[index].recipient}.`);
-    }
-  });
+  return;
 }
 
 async function insertLoginLog({ empId, name, role, action, req }) {
